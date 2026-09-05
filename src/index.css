@@ -1,0 +1,196 @@
+/* Trainistan QA — deliberately plain. A tester spends hours in here, so the
+   page is quiet, the type is large enough to read all day, and the only strong
+   colour is on the status a test is currently in. */
+
+:root {
+  --navy: #071952;
+  --teal: #0abfbc;
+  --teal-ink: #077f7d;
+  --ground: #f4f7fb;
+  --surface: #ffffff;
+  --ink: #16232e;
+  --ink-2: #5b6677;
+  --rule: #e3e9f0;
+  --pass: #1a7f4b;
+  --pass-soft: #e6f5ec;
+  --fail: #b3261e;
+  --fail-soft: #fdecea;
+  --blocked: #9a5b06;
+  --blocked-soft: #fdf3e2;
+  --na: #5b6677;
+  --na-soft: #eef1f5;
+
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+}
+
+.wrap { max-width: 940px; margin: 0 auto; padding: 0 20px 96px; }
+
+/* ---------- header ---------- */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+.top-inner {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.brand { font-weight: 700; color: var(--navy); font-size: 17px; letter-spacing: -.01em; }
+.brand span { color: var(--teal-ink); }
+.top-meta { font-size: 13px; color: var(--ink-2); }
+.top-spacer { flex: 1; }
+
+.bar {
+  height: 6px;
+  background: var(--rule);
+  border-radius: 99px;
+  overflow: hidden;
+  width: 100%;
+  margin-top: 10px;
+}
+.bar > i { display: block; height: 100%; background: var(--teal); transition: width .25s; }
+
+/* ---------- generic ---------- */
+h1 { font-size: 26px; line-height: 1.2; margin: 28px 0 8px; color: var(--navy); letter-spacing: -.02em; }
+h2 { font-size: 19px; margin: 0 0 4px; color: var(--navy); letter-spacing: -.01em; }
+p  { margin: 0 0 14px; color: var(--ink-2); max-width: 68ch; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 14px;
+}
+
+label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+
+input[type="text"], select, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 15px;
+  background: var(--surface);
+  color: var(--ink);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(10, 191, 188, .18);
+}
+textarea { resize: vertical; min-height: 68px; }
+
+button { font: inherit; cursor: pointer; }
+.btn {
+  border: 1px solid var(--navy);
+  background: var(--navy);
+  color: #fff;
+  padding: 11px 20px;
+  border-radius: 9px;
+  font-weight: 600;
+  font-size: 15px;
+}
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--navy); }
+.btn.small { padding: 7px 14px; font-size: 14px; }
+
+/* ---------- section nav ---------- */
+.sections { display: grid; gap: 8px; margin-bottom: 20px; }
+.section-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.section-row:hover { border-color: var(--teal); }
+.section-row.active { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
+.section-row .name { font-weight: 600; color: var(--ink); }
+.section-row .count { margin-left: auto; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.section-row.done .count { color: var(--pass); font-weight: 600; }
+
+/* ---------- test ---------- */
+.test { border-top: 1px solid var(--rule); padding: 18px 0; }
+.test:first-of-type { border-top: 0; }
+.test-id { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--ink-2); }
+.test-title { font-weight: 600; font-size: 16px; margin: 2px 0 6px; }
+.test dl { margin: 10px 0 0; font-size: 14px; }
+.test dt { font-weight: 600; color: var(--ink); margin-top: 10px; }
+.test dd { margin: 3px 0 0; color: var(--ink-2); }
+.test ol { margin: 4px 0 0; padding-left: 20px; color: var(--ink-2); font-size: 14px; }
+.test ol li { margin-bottom: 3px; }
+
+.statuses { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 0; }
+.status-btn {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink-2);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.status-btn:hover { border-color: var(--ink-2); }
+.status-btn.on.pass    { background: var(--pass-soft);    border-color: var(--pass);    color: var(--pass); }
+.status-btn.on.fail    { background: var(--fail-soft);    border-color: var(--fail);    color: var(--fail); }
+.status-btn.on.blocked { background: var(--blocked-soft); border-color: var(--blocked); color: var(--blocked); }
+.status-btn.on.na      { background: var(--na-soft);      border-color: var(--na);      color: var(--na); }
+
+.comment { margin-top: 10px; }
+
+/* ---------- footer nav ---------- */
+.foot {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.foot .spacer { flex: 1; }
+
+.note {
+  background: #fdf3e2;
+  border: 1px solid rgba(154, 91, 6, .3);
+  color: #7a4a06;
+  border-radius: 9px;
+  padding: 12px 14px;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+.note.good { background: var(--pass-soft); border-color: rgba(26,127,75,.3); color: var(--pass); }
+.note.bad  { background: var(--fail-soft); border-color: rgba(179,38,30,.3);  color: var(--fail); }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin: 16px 0; }
+.tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; text-align: center; }
+.tile b { display: block; font-size: 24px; color: var(--navy); }
+.tile span { font-size: 12px; color: var(--ink-2); }
+
+@media (max-width: 620px) {
+  .top-inner { padding: 12px 16px; }
+  .wrap { padding: 0 16px 80px; }
+  h1 { font-size: 22px; }
+}
