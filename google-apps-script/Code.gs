@@ -8,20 +8,22 @@
  * Copy the /exec URL it gives you into the QA form's VITE_SHEET_URL.
  *
  * EACH TESTER GETS THEIR OWN TAB
- * Results are written to a tab named after the tester, created on their first
+ * Results go to a tab named after the tester, created on their first
  * submission. One shared tab mixed everybody's runs together and made a long
- * pass hard to read; a tab each keeps one person's work in one place and lets
- * the developer export just that person.
+ * pass hard to read.
  *
  * WHY "Anyone" IS SAFE ENOUGH HERE
  * The form posts from a tester's browser with no Google account, so the
- * endpoint has to be reachable without sign-in. Only doPost exists, so the URL
- * can add rows and cannot read any back: a stranger who found it could write
- * noise, never read your results. SHARED_KEY below turns away anything that is
- * not the form.
+ * endpoint has to be reachable without sign-in. SHARED_KEY turns away anything
+ * that is not the form.
  *
- * Reading stays behind Google's own sharing on the Sheet itself, which is why
- * there is no passcode to invent, store or leak.
+ * doGet EXISTS ONLY TO RESUME A RUN, AND RETURNS NO COMMENTS
+ * A tester who starts in the office and continues at home needs their place
+ * back, and a browser cannot see another device's storage. So doGet hands back
+ * which test ids were answered and with what status, and nothing else. The
+ * comments are the sensitive part, the actual notes on what is broken, and they
+ * never leave the sheet. Reading those still means opening the sheet, which is
+ * behind Google's own sharing.
  */
 
 // Change this, and put the same value in the form's VITE_SHARED_KEY.
@@ -38,6 +40,10 @@ const HEADERS = [
   'Status',
   'Comment',
 ];
+
+const COL_SESSION = 2; // 1-based, matches HEADERS
+const COL_TEST_ID = 6;
+const COL_STATUS = 8;
 
 function doPost(e) {
   try {
@@ -82,12 +88,55 @@ function doPost(e) {
 }
 
 /**
- * The tab for this tester, created on first use.
+ * Resume: given a run id, hand back which tests were answered and how.
  *
- * The tester's name is not the sheet name directly: Google rejects a few
- * characters outright and caps the length, and an unnamed submission would
- * otherwise throw rather than land somewhere findable.
+ * Answered as JSONP, not JSON. Apps Script does not send an
+ * Access-Control-Allow-Origin header, so a browser on another origin cannot
+ * read a plain fetch of this. A script tag is not subject to that rule, which
+ * is the one route that actually works from the form.
  */
+function doGet(e) {
+  const p = (e && e.parameter) || {};
+  const callback = p.callback;
+
+  if (p.key !== SHARED_KEY) {
+    return reply({ ok: false, error: 'bad key' }, callback);
+  }
+  const session = String(p.session || '').trim();
+  if (!session) {
+    return reply({ ok: false, error: 'no session' }, callback);
+  }
+
+  // Later rows win, so a test answered twice resumes as whatever it was
+  // changed to rather than what it first was.
+  const answers = {};
+  let found = 0;
+
+  const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  for (let i = 0; i < sheets.length; i++) {
+    const sheet = sheets[i];
+    const last = sheet.getLastRow();
+    if (last < 2) continue;
+
+    const values = sheet
+      .getRange(2, 1, last - 1, HEADERS.length)
+      .getValues();
+
+    for (let r = 0; r < values.length; r++) {
+      const row = values[r];
+      if (String(row[COL_SESSION - 1]) !== session) continue;
+      const testId = String(row[COL_TEST_ID - 1] || '').trim();
+      const status = String(row[COL_STATUS - 1] || '').trim();
+      if (!testId || !status) continue;
+      answers[testId] = status;
+      found++;
+    }
+  }
+
+  // Deliberately no comments in this payload. See the note at the top.
+  return reply({ ok: true, session: session, rows: found, answers: answers }, callback);
+}
+
 function sheetForTester(rawName) {
   const name = tabName(rawName);
   const book = SpreadsheetApp.getActiveSpreadsheet();
@@ -100,9 +149,14 @@ function sheetForTester(rawName) {
   return sheet;
 }
 
+/**
+ * Google rejects a few characters in a sheet name and caps the length, and a
+ * submission with no name would otherwise throw rather than land somewhere
+ * findable.
+ */
 function tabName(rawName) {
   const cleaned = String(rawName || '')
-    .replace(/[:\\\/\?\*\[\]]/g, ' ') // characters a sheet name cannot contain
+    .replace(/[:\\\/\?\*\[\]]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 90);
@@ -115,6 +169,15 @@ function ensureHeaders(sheet) {
   sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
   sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
   sheet.setFrozenRows(1);
+}
+
+function reply(payload, callback) {
+  if (callback) {
+    return ContentService.createTextOutput(
+      callback + '(' + JSON.stringify(payload) + ');',
+    ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return json(payload);
 }
 
 function json(payload) {

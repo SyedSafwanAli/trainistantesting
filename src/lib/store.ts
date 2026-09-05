@@ -34,6 +34,33 @@ export function newRun(tester: string, environment: string): Run {
   };
 }
 
+/**
+ * Rebuild a run on a second machine from what the sheet already has.
+ *
+ * The id is kept, so continuing from home writes under the same run as the
+ * morning's work in the office rather than splitting one pass in two.
+ *
+ * Comments come back empty because the sheet does not hand them out. They are
+ * not lost: they were submitted with the original answers and are sitting in
+ * the sheet already.
+ */
+export function resumedRun(
+  sessionId: string,
+  tester: string,
+  environment: string,
+  answers: Record<string, Answer['status']>,
+): Run {
+  return {
+    sessionId,
+    tester,
+    environment,
+    startedAt: new Date().toISOString(),
+    answers: Object.fromEntries(
+      Object.entries(answers).map(([id, status]) => [id, { status }]),
+    ),
+  };
+}
+
 export function loadRun(): Run | null {
   try {
     const raw = localStorage.getItem(KEY);

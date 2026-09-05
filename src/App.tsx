@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { sectionsFor, WEBSITE_TOTAL, APP_TOTAL } from './matrix';
 import type { QaSection, QaStatus, QaSuite } from './matrix/types';
-import { clearRun, loadRun, newRun, saveRun, type Run } from './lib/store';
+import { clearRun, loadRun, newRun, resumedRun, saveRun, type Run } from './lib/store';
+import { fetchRun } from './lib/resume';
 import { runAsJson, submitRun } from './lib/submit';
 
 const STATUSES: { value: QaStatus; label: string }[] = [
@@ -68,7 +69,7 @@ export default function App() {
     URL.revokeObjectURL(a.href);
   }
 
-  if (!run) return <Start onStart={(t, e) => setRun(newRun(t, e))} />;
+  if (!run) return <Start onStart={setRun} />;
 
   const section = sections.find((s) => s.key === sectionKey) ?? null;
 
@@ -130,9 +131,37 @@ export default function App() {
   );
 }
 
-function Start({ onStart }: { onStart: (tester: string, environment: string) => void }) {
+function Start({ onStart }: { onStart: (run: Run) => void }) {
   const [tester, setTester] = useState('');
   const [environment, setEnvironment] = useState('UAT');
+  const [resumeId, setResumeId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function begin() {
+    const name = tester.trim();
+    const id = resumeId.trim();
+
+    if (!id) {
+      onStart(newRun(name, environment));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    const res = await fetchRun(id);
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(res.error ?? 'Could not load that run.');
+      return;
+    }
+    if (!res.rows) {
+      setError(`No answers found for run ${id}. Check the ID, or leave it blank to start fresh.`);
+      return;
+    }
+    onStart(resumedRun(id, name, environment, res.answers ?? {}));
+  }
 
   return (
     <div className="wrap">
@@ -142,6 +171,9 @@ function Start({ onStart }: { onStart: (tester: string, environment: string) => 
         you go, so you can close the tab and pick it up later. Send them to the sheet when you are
         done.
       </p>
+
+      {error && <div className="note bad">{error}</div>}
+
       <div className="card">
         <div style={{ marginBottom: 14 }}>
           <label htmlFor="tester">Your name</label>
@@ -161,13 +193,30 @@ function Start({ onStart }: { onStart: (tester: string, environment: string) => 
             <option>Local</option>
           </select>
         </div>
-        <button
-          className="btn"
-          disabled={tester.trim().length < 2}
-          onClick={() => onStart(tester.trim(), environment)}
-        >
-          Start testing
+        <button className="btn" disabled={tester.trim().length < 2 || loading} onClick={begin}>
+          {loading ? 'Loading your run…' : 'Start testing'}
         </button>
+      </div>
+
+      <div className="card">
+        <h2>Carrying on from another computer?</h2>
+        <p style={{ marginBottom: 12 }}>
+          Answers live in the browser you used, so a run started at the office is not on this
+          machine. Enter that run ID and the answers already sent to the sheet come back. The run
+          ID is shown at the top of the page while you test.
+        </p>
+        <label htmlFor="resume">Run ID (optional)</label>
+        <input
+          id="resume"
+          type="text"
+          value={resumeId}
+          onChange={(e) => setResumeId(e.target.value)}
+          placeholder="260905-2028-i4lj"
+        />
+        <p style={{ fontSize: 13, marginTop: 10, marginBottom: 0 }}>
+          Only answers that were sent to the sheet come back. Anything marked but never submitted
+          stayed on the other machine. Your comments stay in the sheet and are not reloaded here.
+        </p>
       </div>
     </div>
   );
