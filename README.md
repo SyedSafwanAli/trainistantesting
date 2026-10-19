@@ -70,10 +70,27 @@ redeploy for it to take effect.
 
 ## The test matrix
 
-`src/matrix/` holds the cases: 676 for the website across 49 sections, plus the
-mobile app suite. Each case carries an id, what it is checking, what must be
-true first, numbered steps and the one observable outcome that decides pass or
-fail, so two testers reading the same case do the same thing.
+`src/matrix/` holds the cases: 777 for the website across 55 sections, plus 234
+for the mobile app across 13. Each case carries an id, what it is checking, what
+must be true first, numbered steps and the one observable outcome that decides
+pass or fail, so two testers reading the same case do the same thing.
+
+### Where to start
+
+`XC-RECENT` covers code that moved in the last few days, and each of its cases
+names what used to go wrong, so it is obvious whether old behaviour has come
+back. It is short. Run it before the rest.
+
+After that, `ST-PAY` and `TR-PAYOUT` are the two that cost real money when they
+fail: one takes it, the other sends it. UAT runs PayPal in sandbox and Stripe in
+test mode, so nothing you do there moves money, but both need their own test
+accounts set up before the cases make sense:
+
+- a PayPal **sandbox buyer**, from developer.paypal.com under Testing Tools,
+  Sandbox Accounts — a personal PayPal account cannot sign in to the sandbox
+- a Stripe test card, 4242 4242 4242 4242 with any future expiry
+- a student with **more than ten enrolments**, for the course-list cases, since
+  the bug they cover only appears past the first page
 
 Ids must be unique and well formed. A duplicate would quietly merge two cases
 into one stored row, and the count would look complete while a case was never

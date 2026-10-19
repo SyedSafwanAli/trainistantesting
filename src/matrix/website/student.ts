@@ -77,6 +77,14 @@ export const studentSections = [
       t('ST-LEARN-018', 'Certificate on completion', 'Completing a course issues a certificate.', 'A course you just completed.', ['Open /student/certificates.'], 'A certificate for that course is listed.'),
       t('ST-LEARN-019', 'Unenrolled course is not playable', 'The player refuses a course you are not enrolled in.', 'A course id you are not enrolled in.', ['Open /student/courses/<that id> directly.'], 'Access is refused or you are redirected. Lesson content is not shown.'),
       t('ST-LEARN-020', 'Player on a narrow screen', 'The player is usable on a phone.', 'An enrolled course.', ['Narrow the browser to about 390px and open the player.'], 'The video, curriculum and lesson content all remain usable. Nothing overflows horizontally.'),
+      // The enrolment list is paginated and the site used to ask for no page
+      // size, so it received the first ten and treated them as the whole
+      // truth. Five screens read that one call, which is why these four look
+      // at the same fact from four directions.
+      t('ST-LEARN-021', 'My Courses lists every enrolment', 'The list is not cut off at the first page.', 'A student with more than ten enrolments. syedsafwanali8802@gmail.com has nineteen.', ['Open /student/courses.', 'Count the courses.'], 'Every enrolment is listed. A student with nineteen sees nineteen, not ten.'),
+      t('ST-LEARN-022', 'An owned course past the tenth is still owned', 'A course outside the first page is recognised as enrolled.', 'The same student. Note a course that sits after the tenth in their list.', ['Open that course page directly.'], 'It shows progress and a continue action. There is no Buy button and no checkout opens.'),
+      t('ST-LEARN-023', 'The catalogue agrees', 'Browse marks every owned course, not just the first ten.', 'The same student.', ['Open /student/courses/browse.', 'Find that same course.'], 'It is marked as already enrolled.'),
+      t('ST-LEARN-024', 'Assignments cover every course', 'Assignments are not limited to the first page of enrolments.', 'The same student, with an assignment on a course past the tenth.', ['Open /student/assignments.'], 'That assignment is listed.'),
     ],
   ),
 
@@ -177,6 +185,33 @@ export const studentSections = [
       t('ST-OTHER-036', 'Settings page loads', 'Student settings render.', 'Signed in as Student.', ['Open /student/settings.'], 'Account, password, notification and preference settings render.'),
       t('ST-OTHER-037', 'Change notification preferences', 'Notification settings persist.', 'On /student/settings.', ['Turn one notification preference off.', 'Save.', 'Refresh.'], 'The change persists.'),
       t('ST-OTHER-038', 'Request a role change', 'A student can ask to become a trainer.', 'On /student/settings.', ['Submit a role request with a message.'], 'A confirmation appears and the request shows in Admin > Role Requests. If this is not offered here, mark this N/A.'),
+    ],
+  ),
+
+  section(
+    'ST-PAY',
+    'Student: Paying with PayPal and credit',
+    'The PayPal half of checkout, wallet top-ups and receipts. Card and wallet payment are covered under ST-BROWSE; this section is the paths that go out to PayPal and come back. UAT runs PayPal in sandbox and Stripe in test mode, so no real money can move, but use the sandbox buyer account rather than a personal one.',
+    [
+      t('ST-PAY-001', 'Checkout offers only what the server can complete', 'The payment methods shown match what the api reports.', 'A paid course you are not enrolled in. Note what /health reports for stripe and paypal.', ['Open the enrolment dialog for that course.'], 'Every method offered is one the api reports as working. A method the server cannot complete is absent, not shown and broken on click.'),
+      t('ST-PAY-002', 'PayPal is offered', 'PayPal appears as a payment method.', 'The api reports paypal ok.', ['Open the enrolment dialog.'], 'PayPal is listed alongside card, described as a redirect.'),
+      t('ST-PAY-003', 'PayPal order is created', 'Choosing PayPal creates an order and redirects.', 'The enrolment dialog open on a paid course.', ['Choose PayPal.', 'Continue.'], 'You are taken to sandbox.paypal.com with a checkout token in the address. No error appears first.'),
+      t('ST-PAY-004', 'The amount at PayPal matches the course', 'PayPal is asked for the right amount.', 'At the PayPal page from the previous case.', ['Read the amount PayPal shows.'], 'It equals the course price shown in the dialog, in the same currency.'),
+      // The return address is set on the server and was wrong once: it pointed
+      // at a page that does not exist, so approving a payment landed the buyer
+      // on a 404 and nothing was ever captured.
+      t('ST-PAY-005', 'PayPal returns you to the capture page', 'The return address is the page that completes the payment.', 'A PayPal sandbox buyer account.', ['Sign in at PayPal as the sandbox buyer.', 'Approve the payment.', 'Watch the address bar as it returns.'], 'You land on uat.trainistan.com/payments/paypal/capture and that page completes the payment. Not a not-found page.'),
+      t('ST-PAY-006', 'A PayPal purchase enrols the student', 'An approved PayPal payment produces an enrolment.', 'The payment from the previous case captured.', ['Open /student/courses.'], 'The course is listed and openable.'),
+      t('ST-PAY-007', 'Cancelling at PayPal charges nothing', 'The cancel path returns cleanly.', 'A PayPal payment started.', ['At PayPal, use cancel and return rather than approving.'], 'You land back on Trainistan on a real page, nothing is charged, and no enrolment is created.'),
+      t('ST-PAY-008', 'Capturing twice does not charge twice', 'The capture page is safe to reload.', 'A PayPal payment just captured.', ['Reload the capture page, or open its address again with the same token.'], 'It reports the payment as already complete. No second charge and no second enrolment.'),
+      t('ST-PAY-009', 'Abandoning at PayPal leaves nothing behind', 'An unapproved order does not enrol anybody.', 'A PayPal payment started.', ['Close the PayPal tab without approving or cancelling.', 'Return to Trainistan and open /student/courses.'], 'No enrolment exists and no charge was taken.'),
+      t('ST-PAY-010', 'Top up the wallet through PayPal', 'A wallet top-up completes.', 'The sandbox buyer account.', ['Open /student/wallet.', 'Add credit and pay with PayPal.', 'Approve.'], 'You return to Trainistan and the balance rises by the amount you chose.'),
+      t('ST-PAY-011', 'Top-up shows in the wallet history', 'The transaction is recorded.', 'The top-up from the previous case.', ['Read the wallet history.'], 'A credit entry appears with the right amount and date.'),
+      t('ST-PAY-012', 'Spend the credit', 'Credit bought through PayPal can be spent.', 'A wallet balance above a paid course price.', ['Buy that course with wallet credit.'], 'The balance falls by the price and the course is enrolled.'),
+      t('ST-PAY-013', 'Receipt for a PayPal purchase', 'A PayPal payment produces a receipt.', 'A completed PayPal purchase.', ['Open /student/receipts and open that receipt.'], 'Amount, method and date are all correct, and the method says PayPal.'),
+      t('ST-PAY-014', 'The wallet and the receipts agree', 'Two screens report the same money.', 'At least one purchase and one top-up.', ['Compare /student/wallet against /student/receipts.'], 'The same transactions appear in both with the same amounts.'),
+      t('ST-PAY-015', 'Signed out part way through', 'A payment started while signed in does not strand the buyer.', 'A PayPal payment started.', ['Sign out in another tab.', 'Complete the PayPal approval.'], 'The capture page asks you to sign in rather than failing silently, and after signing in the payment completes or reports clearly that it did not.'),
+      t('ST-PAY-016', 'No second purchase of a course you own', 'An owned course cannot be bought again.', 'A course bought in this section.', ['Open that course page and look for a way to pay again.'], 'No checkout is offered. If one opens, this is a fail and the course id must be noted.'),
     ],
   ),
 ];

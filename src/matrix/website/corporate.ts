@@ -45,6 +45,11 @@ export const corporateSections = [
       t('CORP-TRAINEES-014', 'Remove a trainee', 'A trainee can be removed from the organisation.', 'A disposable trainee.', ['Remove them and confirm.'], 'A confirmation is requested, then they disappear from the roster.'),
       t('CORP-TRAINEES-015', 'Only own organisation trainees are visible', 'Cross-organisation data is not exposed.', 'Two organisations with trainees.', ['As leader A, search for a trainee name that belongs to organisation B.'], 'No result is returned.'),
       t('CORP-TRAINEES-016', 'Large roster stays usable', 'A long trainee list is fully reachable.', 'More trainees than fit on one screen.', ['Scroll or page to the end of the list.'], 'All trainees are reachable and no row is duplicated across pages.'),
+      t('CORP-TRAINEES-017', 'Remove somebody from the team', 'A leaver can be taken off.', 'A trainee you are willing to remove, ideally one added for this run.', ['Remove them from the team.', 'Reload the list.'], 'They are gone from the roster.'),
+      t('CORP-TRAINEES-018', 'The confirmation says what survives', 'Removing a person does not read as deleting them.', 'Starting to remove a trainee.', ['Read the confirmation before accepting.'], 'It says their own account and their learning stay with them, and only their membership of this company ends.'),
+      t('CORP-TRAINEES-019', 'A removed person keeps their account', 'Removal does not destroy the learner.', 'The trainee removed above, whose login you have.', ['Sign in as them.'], 'They can still sign in and their own courses are still there.'),
+      t('CORP-TRAINEES-020', 'One employee\'s courses', 'A leader can see what one person is on.', 'A trainee enrolled in at least one course.', ['Open that trainee and look at their learning.'], 'Their courses are listed with progress for each.'),
+      t('CORP-TRAINEES-021', 'A trainee on nothing', 'Somebody with no courses reads clearly.', 'A trainee with no enrolments.', ['Open their courses.'], 'It says they are on nothing yet, rather than showing an empty box.'),
     ],
   ),
 
@@ -129,6 +134,38 @@ export const corporateSections = [
       t('CORP-REPORTS-020', 'Update organisation settings', 'Settings changes persist.', 'On /corporate/settings.', ['Change the organisation name.', 'Save.', 'Refresh.'], 'A success message appears and the new name persists across the corporate pages.'),
       t('CORP-REPORTS-021', 'Corporate settings validation', 'Invalid settings are rejected.', 'On /corporate/settings.', ['Clear a required field, or enter an invalid email.', 'Save.'], 'A validation error appears and nothing invalid is saved.'),
       t('CORP-REPORTS-022', 'Upload an organisation logo', 'A logo can be uploaded.', 'On /corporate/settings.', ['Upload a PNG or JPG logo.', 'Save.'], 'The logo uploads and renders in the corporate shell.'),
+    ],
+  ),
+
+  section(
+    'CORP-ATTENTION',
+    'Corporate: What needs the leader',
+    'The panel that names what a leader has to act on. Their dashboard reported averages for a long time, which could say a team was at twelve per cent without ever saying that four of the six had never opened a course. Each line here should be a thing somebody can do something about today.',
+    [
+      t('CORP-ATTENTION-001', 'The panel is present', 'A leader is told what is waiting.', 'Signed in as a corporate leader with a team.', ['Open the corporate management screen.'], 'A panel names what needs attention, above the management tools rather than buried under them.'),
+      t('CORP-ATTENTION-002', 'Unaccepted invitations are counted', 'Invitations nobody took up are surfaced.', 'At least one invitation sent and not accepted.', ['Read the panel.'], 'It names how many invitations are still unaccepted.'),
+      t('CORP-ATTENTION-003', 'People with no course are named', 'Employees nobody enrolled are surfaced.', 'At least one trainee with no enrolment.', ['Read the panel.'], 'It gives a count, and names some of them rather than only a number.'),
+      t('CORP-ATTENTION-004', 'Enrolled but never started', 'People sitting on an unopened course are surfaced.', 'A trainee enrolled who has opened nothing.', ['Read the panel.'], 'They are counted separately from people with no course at all. The two are different problems.'),
+      t('CORP-ATTENTION-005', 'Delivered work awaiting acceptance', 'Commissioned courses that need a decision are surfaced.', 'A custom course a trainer has delivered.', ['Read the panel.'], 'It is listed as waiting for the leader.'),
+      t('CORP-ATTENTION-006', 'The lines go somewhere', 'Each item leads to the screen that fixes it.', 'A panel with at least one item.', ['Follow each line in turn.'], 'Each opens the screen where that thing is dealt with.'),
+      t('CORP-ATTENTION-007', 'Nothing waiting', 'A clear company shows no panel or an empty one.', 'A company with no invitations pending, everybody enrolled and started, nothing delivered.', ['Open the management screen.'], 'The panel is absent or says plainly that nothing needs attention. It does not show zeroes as though they were work.'),
+      t('CORP-ATTENTION-008', 'The counts are true', 'The panel agrees with the lists.', 'A panel showing counts.', ['Check each count against the matching list, such as invitations or the roster.'], 'Each number matches what the list actually holds.'),
+    ],
+  ),
+
+  section(
+    'CORP-TRAINREQ',
+    'Corporate: Asking Trainistan to build a course',
+    'The second way to commission work, and the one for a company that does not know which trainer it wants. A custom course makes the customer pick a trainer and settle the brief with them; this hands the whole job to Trainistan. The two are separate queues and the screens should not blur them.',
+    [
+      t('CORP-TRAINREQ-001', 'The screen is reachable', 'A leader can find where to ask.', 'Signed in as a corporate leader.', ['Find and open the request screen from the corporate area.'], 'It opens, and it is distinguishable from custom courses.'),
+      t('CORP-TRAINREQ-002', 'The difference is explained', 'The two ways of commissioning are told apart.', 'On that screen.', ['Read the wording.'], 'It says this one is for when you do not already have a trainer in mind, and points at custom courses for when you do.'),
+      t('CORP-TRAINREQ-003', 'Send a request', 'A brief can be submitted.', 'On that screen.', ['Fill in the topic, level, number of learners and timing.', 'Send.'], 'It is accepted and appears in the list with a status.'),
+      t('CORP-TRAINREQ-004', 'Too short a brief is refused', 'A one-word topic is not accepted.', 'On the form.', ['Enter a very short topic such as "sql".', 'Send.'], 'It asks for more rather than sending. The message says what is wrong, before the send rather than after.'),
+      t('CORP-TRAINREQ-005', 'Only the company sees its own', 'Requests do not leak between companies.', 'Two companies, each with a request.', ['As leader A, read the list.'], 'Only A\'s requests are listed.'),
+      t('CORP-TRAINREQ-006', 'Admin receives it', 'The request reaches the queue.', 'A request just sent.', ['As an admin, open Admin > Training requests.'], 'It is listed, stamped with the company that sent it.'),
+      t('CORP-TRAINREQ-007', 'A status change reaches the company', 'Progress is visible to whoever asked.', 'As an admin on that request.', ['Move it to in progress or matched.', 'Return to the company account and read the list.'], 'The new status shows there.'),
+      t('CORP-TRAINREQ-008', 'Nothing asked for yet', 'An empty list reads sensibly.', 'A company that has sent none.', ['Open the screen.'], 'It explains what the screen is for rather than showing a blank page.'),
     ],
   ),
 ];

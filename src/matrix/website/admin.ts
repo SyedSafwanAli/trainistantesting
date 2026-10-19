@@ -195,6 +195,15 @@ export const adminSections = [
       t('ADMIN-ANALYTICS-006', 'Analytics tabs', 'Any secondary analytics tabs load.', 'On /admin/analytics.', ['Switch through each tab present.'], 'Each tab loads its own data without leaving the previous tab content behind.'),
       t('ADMIN-ANALYTICS-007', 'Analytics loading state', 'A loading state precedes the data.', 'On /admin/analytics.', ['Hard refresh and watch the first second.'], 'Skeletons appear then resolve into data. No permanently empty cards.'),
       t('ADMIN-ANALYTICS-008', 'Analytics with no data', 'An empty date range is handled.', 'On /admin/analytics.', ['Set a date range in which nothing happened, such as a week far in the past.'], 'An empty chart with a clear zero state renders rather than an error.'),
+      // The page reported sales and nothing else for a long time, so revenue
+      // could climb while the queue of trainers waiting to be paid climbed
+      // with it. These three panels are the other half of that picture.
+      t('ADMIN-ANALYTICS-009', 'Payouts panel', 'What is owed and what has been sent are both shown.', 'On /admin/analytics, scrolled to the lower panels.', ['Read the payouts panel.'], 'Owed and paid are given separately, each with a count and an amount. They are not added together into one figure.'),
+      t('ADMIN-ANALYTICS-010', 'Payouts panel agrees with the queue', 'The figure matches the payouts page.', 'The payouts panel and Admin > Payouts.', ['Compare the owed amount against the pending requests.'], 'They agree.'),
+      t('ADMIN-ANALYTICS-011', 'Batches panel', 'Batches are counted by state.', 'On the same panels.', ['Read the batches panel.'], 'A total, plus open, closed and completed counted separately. The three add up to the total.'),
+      t('ADMIN-ANALYTICS-012', 'Course requests panel', 'The two demand queues are kept apart.', 'On the same panels.', ['Read the requests panel.'], 'Requests where nothing matched a search are counted separately from courses commissioned from a named trainer. The two are never added together.'),
+      t('ADMIN-ANALYTICS-013', 'The new panels honour the date range', 'Filtering the page filters them too.', 'On /admin/analytics.', ['Narrow the date range to a recent week.'], 'The three panels change with it. A filtered month of sales does not sit beside every payout ever requested.'),
+      t('ADMIN-ANALYTICS-014', 'No NaN in the new panels', 'Empty data reads as zero.', 'A date range in which nothing happened.', ['Read the three panels.'], 'Zeroes, or the panel is absent. No NaN and no blank next to a currency symbol.'),
     ],
   ),
 
@@ -270,6 +279,34 @@ export const adminSections = [
       t('ADMIN-SETTINGS-010', 'Settings validation', 'Invalid settings values are rejected.', 'On any settings tab with a numeric or formatted field.', ['Enter an obviously invalid value such as -5 in a rate field or notanemail in an email field.', 'Save.'], 'A validation error appears and the invalid value is not saved.'),
       t('ADMIN-SETTINGS-011', 'Send test email', 'The test email action works.', 'SMTP configured. On the settings tab that offers it.', ['Use the send test action with an address you control.'], 'A success message appears and a test email arrives. If SMTP is not configured, a clear error appears rather than a silent success.'),
       t('ADMIN-SETTINGS-012', 'Unsaved changes', 'Leaving with unsaved edits is handled predictably.', 'On a settings tab with an unsaved change.', ['Navigate to another admin page without saving.', 'Come back.'], 'Either you are warned before leaving, or the change is simply discarded. Nothing is saved silently.'),
+      // Email is bought in bundles, so an admin can stop the platform sending
+      // it. Two kinds must survive that switch, because without them nobody
+      // can get into their account: verification and password reset.
+      t('ADMIN-SETTINGS-013', 'Find the email switch', 'Platform email can be turned off from settings.', 'Signed in as Admin.', ['Open Admin > Settings and find the email sending control.'], 'A control to stop and start platform email is present, with its current state shown.'),
+      t('ADMIN-SETTINGS-014', 'Turn platform email off', 'The switch takes effect.', 'On that control.', ['Switch sending off.', 'Save.', 'Reload the page.'], 'It still reads as off.'),
+      t('ADMIN-SETTINGS-015', 'An ordinary email stops', 'A notification email is not sent while off.', 'Sending off, and a mailbox you control on a student account.', ['Trigger something that would normally email, such as an enrolment.', 'Watch that mailbox for a few minutes.'], 'No email arrives.'),
+      t('ADMIN-SETTINGS-016', 'Password reset still arrives', 'A code email ignores the switch.', 'Sending still off.', ['Use Forgot password on an account you can read.'], 'The reset email arrives. This is the case that matters: if it does not, people are locked out.'),
+      t('ADMIN-SETTINGS-017', 'Verification still arrives', 'Registration email ignores the switch too.', 'Sending still off.', ['Register a new account with a mailbox you control.'], 'The verification email arrives.'),
+      t('ADMIN-SETTINGS-018', 'Choose which types are emailed', 'The emailed notification types can be set.', 'On the same settings area.', ['Change which notification types are allowed to email.', 'Save and reload.'], 'The choice persists, and a type that is not on the list cannot be added by mistake.'),
+      t('ADMIN-SETTINGS-019', 'Turn email back on', 'Sending resumes.', 'Sending off.', ['Switch it back on.', 'Trigger an enrolment email again.'], 'Email arrives again. Leave the switch on when you finish this section.'),
+      t('ADMIN-SETTINGS-020', 'In-app notifications are unaffected', 'Stopping email does not stop notifications.', 'Sending off.', ['Trigger a notification.', 'Open the bell as the recipient.'], 'The notification is there in the app even with email off.'),
+    ],
+  ),
+
+  section(
+    'ADMIN-PAYOUTS',
+    'Admin: Trainer payouts',
+    'The queue of trainers waiting to be paid, and what an admin does about it. Payouts are sent by hand, so this screen is the record of what was promised and what was sent. Pairs with TR-PAYOUT, which should be run first so there is a request waiting here.',
+    [
+      t('ADMIN-PAYOUTS-001', 'Payouts page loads', 'The payout queue renders.', 'Signed in as Admin, with at least one payout request.', ['Open Admin > Payouts.'], 'Requests list with trainer, amount, batch and date.'),
+      t('ADMIN-PAYOUTS-002', 'Pending requests are separated', 'What is waiting is distinguishable from what is done.', 'On the payouts page with both pending and settled requests.', ['Read the list.'], 'Pending and settled are told apart by more than the small print, by a filter, a tab or a clear status.'),
+      t('ADMIN-PAYOUTS-003', 'Open one request', 'A request shows its detail.', 'A pending request.', ['Open it.'], 'The trainer, amount, course, batch and request date are all shown.'),
+      t('ADMIN-PAYOUTS-004', 'Mark it paid', 'Settling records a reference.', 'An open pending request.', ['Mark it paid with a payment reference.'], 'The status changes and the reference is stored against it.'),
+      t('ADMIN-PAYOUTS-005', 'Upload a receipt', 'Proof can be attached.', 'A settled payout.', ['Attach a receipt file.'], 'It uploads and can be opened again from the request.'),
+      t('ADMIN-PAYOUTS-006', 'Reject a request', 'A request can be refused.', 'A second pending request.', ['Reject it with a reason.'], 'The status changes and the reason is stored.'),
+      t('ADMIN-PAYOUTS-007', 'A settled payout cannot be settled again', 'Paying twice is prevented.', 'A payout already marked paid.', ['Attempt to mark it paid again.'], 'The action is unavailable or refused. No second record is created.'),
+      t('ADMIN-PAYOUTS-008', 'Totals agree with the list', 'Any headline figure matches the rows.', 'On the payouts page.', ['Add the pending amounts and compare against any total shown.'], 'They match.'),
+      t('ADMIN-PAYOUTS-009', 'Empty queue', 'No requests shows an empty state.', 'All requests settled.', ['Open Admin > Payouts.'], 'A clear empty state rather than a blank page.'),
     ],
   ),
 ];

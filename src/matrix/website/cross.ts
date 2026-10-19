@@ -147,4 +147,55 @@ export const crossSections = [
       t('XC-EDGE-023', 'Date and time formatting', 'Dates read correctly and consistently.', 'Any page showing dates, such as live sessions or invoices.', ['Compare the same event date across two pages.'], 'The dates agree and are in a consistent, unambiguous format.'),
     ],
   ),
+
+  section(
+    'XC-RECENT',
+    'Recently changed: run these first',
+    'Everything in this section covers code that moved in the last few days, so a failure here is most likely a new one rather than something that has always been wrong. Each case names what used to happen, which makes it obvious whether the old behaviour has come back. Run this section before the rest: it is short, and it is where the risk is.',
+    [
+      // Web push went to a project that does not exist, because the project id
+      // was missing its first letter. Firebase Installations then had nothing
+      // to register against and the browser never got a token.
+      t('XC-RECENT-001', 'Browser push registers', 'The website can get a push token.', 'Chrome or Edge, signed in, notifications not already blocked for the site.', ['Allow notifications when the site asks.', 'Open the browser console and watch for errors mentioning firebase or installations.'], 'Permission is granted and no error names a project that cannot be found.'),
+      t('XC-RECENT-002', 'A browser notification arrives', 'Web push delivers.', 'Push allowed on one account, and a second account to act from.', ['Leave the tab in the background.', 'From the second account, do something that notifies the first, such as sending a message.'], 'A notification appears from the browser itself, not only inside the page.'),
+      t('XC-RECENT-003', 'Phone push still works', 'Mobile delivery is unaffected.', 'The app installed and signed in, then closed.', ['Trigger a notification for that account.'], 'It arrives on the phone and opens the right screen when tapped.'),
+      // Both room pages joined with a build-time app id while the token was
+      // minted by the api against its own. A token is valid for exactly one
+      // app id, so a mismatch stopped anyone joining at all.
+      t('XC-RECENT-004', 'A live room can be joined', 'Video connects for both sides.', 'A trainer and a student account, and a scheduled session.', ['Start the session as the trainer.', 'Join as the student from another browser.'], 'Both see and hear each other. A room that never connects, with no useful error, is the failure to report.'),
+      t('XC-RECENT-005', 'Joining from the app too', 'The same session works on a phone.', 'The session from the previous case still running.', ['Join from the app as the student.'], 'Video and audio work there as well.'),
+      t('XC-RECENT-006', 'A long session does not drop', 'Token renewal keeps the room alive.', 'A running session.', ['Stay in the room for over an hour.'], 'Nobody is thrown out.'),
+      // The site asked for no page size and the api answers ten, so a student
+      // with nineteen courses was told nine of them were not theirs: the
+      // catalogue offered Enroll on a course they owned, and the course page
+      // put a Buy button on one and opened checkout for it.
+      t('XC-RECENT-007', 'Every enrolment is listed', 'The course list is not cut off at ten.', 'A student with more than ten enrolments.', ['Open My Courses and count.'], 'All of them are listed.'),
+      t('XC-RECENT-008', 'No Buy button on an owned course', 'A course past the tenth is recognised.', 'The same student, and a course from the end of their list.', ['Open it.'], 'Progress and continue, with no checkout anywhere on the page.'),
+      t('XC-RECENT-009', 'Nobody can pay twice', 'The same course cannot be bought again.', 'A course the student owns.', ['Try every route to pay for it again: the course page, the catalogue and the public page.'], 'None of them opens a checkout. This is the case worth being thorough about, because the cost of it failing is somebody paying twice.'),
+      // PayPal was configured for the first time, and its return address
+      // pointed at a page that does not exist, so approving a payment landed
+      // the buyer on a 404 and nothing was ever captured.
+      t('XC-RECENT-010', 'PayPal returns to a real page', 'The return address is the capture page.', 'A PayPal sandbox buyer and a paid course.', ['Pay with PayPal and approve at PayPal.', 'Watch where you land.'], 'uat.trainistan.com/payments/paypal/capture, which then completes the payment. Not a not-found page.'),
+      t('XC-RECENT-011', 'PayPal cancel returns to a real page', 'The cancel address exists too.', 'A PayPal payment started.', ['Use cancel and return at PayPal.'], 'You land on a real Trainistan page, not a not-found one.'),
+      // Android refuses to issue a token to an app it cannot identify, and
+      // the failure looks like a button that does nothing.
+      t('XC-RECENT-012', 'Google sign-in on the app', 'Google recognises the app.', 'App data cleared, a Google account on the device.', ['Press Continue with Google and complete it.'], 'The picker opens, sign-in completes, real data loads. A button that does nothing, or an error mentioning code 10, is the failure.'),
+      // The admin page reported sales and nothing else, so revenue could climb
+      // while the queue of trainers waiting to be paid climbed with it.
+      t('XC-RECENT-013', 'Analytics reports more than sales', 'The three newer panels are present.', 'Signed in as Admin.', ['Open Admin > Analytics and scroll to the lower panels.'], 'Payouts, batches and course requests are all shown, and the numbers agree with the pages that own them.'),
+      // Sections could be added and never changed, so a typo in a title was
+      // permanent on a phone.
+      t('XC-RECENT-014', 'Curriculum can be corrected from the app', 'Sections and lessons are editable on mobile.', 'A trainer account with a course.', ['Rename a section and remove a lesson from the app.', 'Check the same course on the website.'], 'Both changes hold and both clients agree.'),
+      // The app could create a task and never finish one.
+      t('XC-RECENT-015', 'A task can be finished on the app', 'Tasks are completable on mobile.', 'Signed in on the app.', ['Add a task, mark it done, reopen the app.'], 'It is still done, and the website agrees.'),
+      // The score was shown once and the list then printed a percentage that
+      // led nowhere.
+      t('XC-RECENT-016', 'A finished quiz can be reopened on the app', 'Past marking is readable.', 'A quiz finished on that account.', ['Open its result from the list.'], 'The per-question marking shows.'),
+      // Ten trainer screens were in the app and the profile was not.
+      t('XC-RECENT-017', 'A trainer can edit their profile on the app', 'The bio is editable on mobile.', 'Signed in as a Trainer on the app.', ['Change the bio and save, then check the website.'], 'Both show the new bio.'),
+      // The leader dashboard reported averages and nothing a manager could act
+      // on.
+      t('XC-RECENT-018', 'A leader is told what needs them', 'The attention panel is present in both clients.', 'A corporate leader with something outstanding.', ['Open the management screen on the website and in the app.'], 'Both name the same outstanding work.'),
+    ],
+  ),
 ];

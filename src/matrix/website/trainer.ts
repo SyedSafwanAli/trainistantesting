@@ -52,6 +52,16 @@ export const trainerSections = [
       t('TR-COURSES-020', 'Locked course cannot be edited', 'A locked course refuses edits.', 'A course an admin has locked.', ['Attempt to edit it.'], 'Editing is refused with a clear message. If no course is locked, mark this N/A.'),
       t('TR-COURSES-021', 'Cancel out of the builder', 'Abandoning course creation creates nothing.', 'On /trainer/courses/new with data typed in.', ['Navigate away without saving.', 'Return to /trainer/courses.'], 'No partially created course appears in the list.'),
       t('TR-COURSES-022', 'Course price validation', 'A nonsensical price is rejected.', 'Creating or editing a course.', ['Enter -50 as the price.', 'Save.'], 'A validation error appears and the negative price is not saved.'),
+      // Adding curriculum has always worked; changing it afterwards is the
+      // part to exercise. There is no lesson edit endpoint, so a lesson is
+      // changed by removing it and adding it again, and the screen should say
+      // so rather than offering an edit that cannot work.
+      t('TR-COURSES-023', 'Rename a section', 'A section title can be corrected after it is made.', 'A course with at least one section.', ['Rename the section.', 'Reload the page.'], 'The new title is shown. The old one is gone.'),
+      t('TR-COURSES-024', 'Delete a lesson', 'A single lesson can be removed.', 'A section with two or more lessons.', ['Remove one lesson.', 'Reload.'], 'That lesson is gone and the others are untouched.'),
+      t('TR-COURSES-025', 'Deleting a section warns about its lessons', 'The confirmation says what else goes.', 'A section containing lessons.', ['Start deleting that section and read the confirmation before accepting.'], 'It names how many materials will go with it, rather than mentioning only the section.'),
+      t('TR-COURSES-026', 'Delete a section', 'A section and its lessons are removed together.', 'The confirmation from the previous case.', ['Accept it.', 'Reload.'], 'The section and every lesson inside it are gone.'),
+      t('TR-COURSES-027', 'Reorder sections', 'Section order can be changed.', 'A course with two or more sections.', ['Change their order.', 'Reload.'], 'The new order holds, and students see the same order in the player.'),
+      t('TR-COURSES-028', 'Edits reach the student', 'Curriculum changes show to somebody enrolled.', 'A course with a student enrolled, and a section renamed in this run.', ['Open that course as the enrolled student.'], 'The student sees the new title and the removed material is absent.'),
     ],
   ),
 
@@ -166,6 +176,27 @@ export const trainerSections = [
       t('TR-OTHER-028', 'Custom requests page', 'Corporate custom course requests reach the trainer.', 'A corporate leader has raised a custom course request naming this trainer.', ['Open /trainer/custom-requests.'], 'The request is listed with the requesting organisation and the brief.'),
       t('TR-OTHER-029', 'Respond to a custom request', 'A trainer can accept or decline a custom request.', 'A pending custom request.', ['Accept or decline it.'], 'The state changes and the corporate leader sees the response.'),
       t('TR-OTHER-030', 'Empty custom requests', 'No requests shows an empty state.', 'A trainer with no custom requests.', ['Open /trainer/custom-requests.'], 'A clear empty state renders.'),
+    ],
+  ),
+
+  section(
+    'TR-PAYOUT',
+    'Trainer: Earnings and getting paid',
+    'What a trainer is owed, how they claim it and what proof they get back. Payouts are sent by hand at present, so the test is that the request, the decision and the receipt all line up. Needs an admin to settle a request part way through.',
+    [
+      t('TR-PAYOUT-001', 'Earnings page loads', 'The earnings screen renders.', 'Signed in as a Trainer with at least one paid enrolment.', ['Open /trainer/earnings.'], 'A headline figure and a breakdown both render with real numbers.'),
+      t('TR-PAYOUT-002', 'The breakdown adds up', 'The detail agrees with the headline.', 'On /trainer/earnings.', ['Add the rows in the breakdown.', 'Compare against the headline figure.'], 'They match. A difference here means two screens disagree about the same money and must be reported with both numbers.'),
+      t('TR-PAYOUT-003', 'Earnings count only this trainer', 'A trainer sees their own money and nobody else\'s.', 'Two trainers with paid enrolments.', ['Compare the figure against the courses this trainer actually teaches.'], 'Only their own courses are counted.'),
+      t('TR-PAYOUT-004', 'A claimable batch is offered', 'Finished work can be claimed.', 'A batch this trainer taught that has been signed off.', ['Start a payout request.'], 'The batch is offered to pick, with its course and amount shown. The amount is not typed in by hand.'),
+      t('TR-PAYOUT-005', 'Request a payout', 'A request is created.', 'The batch from the previous case.', ['Pick it, add a note, submit.'], 'A confirmation appears and the request shows as pending with the right amount.'),
+      t('TR-PAYOUT-006', 'The same batch cannot be claimed twice', 'A claimed batch leaves the list.', 'The request from the previous case.', ['Start another payout request.'], 'That batch is no longer offered.'),
+      t('TR-PAYOUT-007', 'Admin sees the request', 'The request reaches the queue.', 'The pending request.', ['As an admin, open Admin > Payouts.'], 'It is listed with the trainer, the amount and the date.'),
+      t('TR-PAYOUT-008', 'Admin settles it', 'Marking it paid records a reference.', 'As an admin on that request.', ['Mark it paid and record a payment reference.'], 'The status changes and the reference is stored.'),
+      t('TR-PAYOUT-009', 'The trainer sees it settled', 'The decision reaches the trainer.', 'The settled request.', ['As the trainer, open payouts again.'], 'It shows as paid, with the reference and the date.'),
+      t('TR-PAYOUT-010', 'Payout receipt', 'A paid payout produces a receipt.', 'The settled payout.', ['Open its receipt.'], 'It opens and shows the amount, the batch and the reference.'),
+      t('TR-PAYOUT-011', 'A refused request says so', 'A rejection is visible to the trainer.', 'A payout request an admin rejects.', ['As the trainer, open payouts.'], 'It shows as rejected rather than silently disappearing or staying pending.'),
+      t('TR-PAYOUT-012', 'A trainer with no earnings', 'An empty earnings page is sensible.', 'A trainer with no paid enrolments.', ['Open /trainer/earnings.'], 'A clear empty state, with zeroes rather than blanks or broken cards.'),
+      t('TR-PAYOUT-013', 'Payout details', 'Where the money should go can be recorded.', 'Signed in as Trainer.', ['Open the payout details settings.', 'Save a method.', 'Reload.'], 'The details persist and are shown back.'),
     ],
   ),
 ];
