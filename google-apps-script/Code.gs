@@ -59,12 +59,13 @@ function doPost(e) {
     }
 
     const sheet = sheetForTester(body.tester);
-
+    const session = body.sessionId || '';
     const submittedAt = new Date();
-    const rows = results.map(function (r) {
+
+    function rowFor(r) {
       return [
         submittedAt,
-        body.sessionId || '',
+        session,
         body.environment || '',
         r.suite || '',
         r.section || '',
@@ -73,15 +74,47 @@ function doPost(e) {
         r.status || '',
         r.comment || '',
       ];
-    });
+    }
+
+    // One row per test per run, never two.
+    //
+    // This used to append everything it was given, so a tester who pressed send
+    // at lunch and again at five had the whole morning in the sheet twice, and
+    // a verdict they had changed sat underneath the one they changed it from.
+    // Matching on run and test id makes a second send a correction rather than
+    // a duplicate, whatever the form chooses to post.
+    const existing = rowIndex(sheet, session);
+    const appended = [];
+    let updated = 0;
+
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      const id = String(r.testId || '').trim();
+      if (!id) continue;
+      const at = existing[id];
+      if (at) {
+        sheet.getRange(at, 1, 1, HEADERS.length).setValues([rowFor(r)]);
+        updated++;
+      } else {
+        appended.push(rowFor(r));
+      }
+    }
 
     // One appendRow per result would be one API call per row and would crawl
     // on a 600-test run. setValues writes the whole block at once.
-    sheet
-      .getRange(sheet.getLastRow() + 1, 1, rows.length, HEADERS.length)
-      .setValues(rows);
+    if (appended.length) {
+      sheet
+        .getRange(sheet.getLastRow() + 1, 1, appended.length, HEADERS.length)
+        .setValues(appended);
+    }
 
-    return json({ ok: true, written: rows.length, tab: sheet.getName() });
+    return json({
+      ok: true,
+      written: appended.length + updated,
+      added: appended.length,
+      updated: updated,
+      tab: sheet.getName(),
+    });
   } catch (err) {
     return json({ ok: false, error: String(err) });
   }
@@ -135,6 +168,28 @@ function doGet(e) {
 
   // Deliberately no comments in this payload. See the note at the top.
   return reply({ ok: true, session: session, rows: found, answers: answers }, callback);
+}
+
+/**
+ * test id -> the row it already occupies for this run, on this tab.
+ *
+ * Read in one call rather than searching per result: a send can carry hundreds
+ * of cases, and a getRange for each would take minutes. Later rows win, so a
+ * tab that already holds duplicates from before this change settles on the
+ * last one written, which is the most recent verdict.
+ */
+function rowIndex(sheet, session) {
+  const index = {};
+  const last = sheet.getLastRow();
+  if (last < 2 || !session) return index;
+
+  const values = sheet.getRange(2, 1, last - 1, HEADERS.length).getValues();
+  for (let r = 0; r < values.length; r++) {
+    if (String(values[r][COL_SESSION - 1]) !== session) continue;
+    const id = String(values[r][COL_TEST_ID - 1] || '').trim();
+    if (id) index[id] = r + 2; // +2: one for the header, one for 1-based rows
+  }
+  return index;
 }
 
 function sheetForTester(rawName) {

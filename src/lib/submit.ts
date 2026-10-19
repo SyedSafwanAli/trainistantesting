@@ -1,5 +1,5 @@
 import { TEST_INDEX } from '../matrix';
-import type { Run } from './store';
+import { pendingIds, type Run } from './store';
 
 const SHEET_URL = import.meta.env.VITE_SHEET_URL as string | undefined;
 const SHARED_KEY = import.meta.env.VITE_SHARED_KEY as string | undefined;
@@ -7,11 +7,19 @@ const SHARED_KEY = import.meta.env.VITE_SHARED_KEY as string | undefined;
 export interface SubmitResult {
   ok: boolean;
   written?: number;
+  /** The ids that were sent, so the caller can record them as sent. */
+  ids?: string[];
   error?: string;
 }
 
 /**
- * Send a finished run to the Google Sheet, one row per answered test.
+ * Send to the Google Sheet what it has not already been told.
+ *
+ * This used to post every answer in the run, so a tester who sent at lunch and
+ * again at five put the whole morning in the sheet twice. Now only answers that
+ * are new, or that were edited after they were sent, go up. The receiving
+ * script matches on run and test id and overwrites the row it already has, so a
+ * changed verdict corrects itself instead of landing underneath the old one.
  *
  * Sent as text/plain rather than application/json on purpose. Apps Script web
  * apps do not answer CORS preflight, and a JSON content type makes the browser
@@ -27,7 +35,17 @@ export async function submitRun(run: Run): Promise<SubmitResult> {
     return { ok: false, error: 'This build has no sheet URL configured (VITE_SHEET_URL).' };
   }
 
-  const results = Object.entries(run.answers).map(([testId, answer]) => {
+  if (!Object.keys(run.answers).length) {
+    return { ok: false, error: 'Nothing to send: no cases answered yet.' };
+  }
+
+  const ids = pendingIds(run);
+  if (!ids.length) {
+    return { ok: false, error: 'The sheet already has everything in this run.' };
+  }
+
+  const results = ids.map((testId) => {
+    const answer = run.answers[testId];
     const entry = TEST_INDEX.get(testId);
     return {
       testId,
@@ -38,10 +56,6 @@ export async function submitRun(run: Run): Promise<SubmitResult> {
       comment: answer.comment ?? '',
     };
   });
-
-  if (!results.length) {
-    return { ok: false, error: 'Nothing to submit: no tests answered yet.' };
-  }
 
   try {
     await fetch(SHEET_URL, {
@@ -56,7 +70,7 @@ export async function submitRun(run: Run): Promise<SubmitResult> {
         results,
       }),
     });
-    return { ok: true, written: results.length };
+    return { ok: true, written: results.length, ids };
   } catch (err) {
     return {
       ok: false,

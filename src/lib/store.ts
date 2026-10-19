@@ -22,6 +22,23 @@ export interface Run {
   startedAt: string;
   /** test id -> answer */
   answers: Record<string, Answer>;
+  /**
+   * What the sheet has already been told, as a signature per test.
+   *
+   * Send used to post every answer in the run, so a second press wrote the
+   * whole pass again and a tester who sent at lunch and again at five had
+   * every case twice. Keeping the signature of what was sent means a later
+   * send carries only what is new or has since been changed.
+   *
+   * The signature covers the comment as well as the verdict, because editing
+   * a note on a case that already passed is a change the sheet should hear
+   * about.
+   */
+  sent?: Record<string, string>;
+  /** Set once a send has succeeded, so the page can say when that was. */
+  lastSentAt?: string;
+  /** True when this run was rebuilt from the sheet rather than started here. */
+  resumed?: boolean;
 }
 
 export function newRun(tester: string, environment: string): Run {
@@ -31,7 +48,34 @@ export function newRun(tester: string, environment: string): Run {
     environment,
     startedAt: new Date().toISOString(),
     answers: {},
+    sent: {},
   };
+}
+
+/** What was sent for one answer, so a later edit can be told from a resend. */
+export function signature(answer: Answer): string {
+  return answer.status + '\u0000' + (answer.comment ?? '');
+}
+
+/**
+ * The answers the sheet has not been told about, or has been told wrongly
+ * because they were edited afterwards.
+ */
+export function pendingIds(run: Run): string[] {
+  const sent = run.sent ?? {};
+  return Object.keys(run.answers).filter(
+    (id) => sent[id] !== signature(run.answers[id]),
+  );
+}
+
+/** Record that these ids reached the sheet as they currently stand. */
+export function markSent(run: Run, ids: string[]): Run {
+  const sent = { ...(run.sent ?? {}) };
+  for (const id of ids) {
+    const answer = run.answers[id];
+    if (answer) sent[id] = signature(answer);
+  }
+  return { ...run, sent, lastSentAt: new Date().toISOString() };
 }
 
 /**
@@ -50,14 +94,23 @@ export function resumedRun(
   environment: string,
   answers: Record<string, Answer['status']>,
 ): Run {
+  const rebuilt = Object.fromEntries(
+    Object.entries(answers).map(([id, status]) => [id, { status }]),
+  );
   return {
     sessionId,
     tester,
     environment,
     startedAt: new Date().toISOString(),
-    answers: Object.fromEntries(
-      Object.entries(answers).map(([id, status]) => [id, { status }]),
+    answers: rebuilt,
+    // These came back out of the sheet, so the sheet already has them and a
+    // send must not write them again. They are recorded with an empty comment
+    // because that is what was rebuilt here; touching the note on one makes it
+    // pending again and the sheet is corrected.
+    sent: Object.fromEntries(
+      Object.entries(rebuilt).map(([id, a]) => [id, signature(a)]),
     ),
+    resumed: true,
   };
 }
 

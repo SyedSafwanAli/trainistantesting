@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { sectionsFor, WEBSITE_TOTAL, APP_TOTAL } from './matrix';
-import type { QaSection, QaStatus, QaSuite } from './matrix/types';
-import { clearRun, loadRun, newRun, resumedRun, saveRun, type Run } from './lib/store';
+import type { QaSection, QaStatus, QaSuite, QaTest } from './matrix/types';
+import {
+  clearRun,
+  loadRun,
+  markSent,
+  newRun,
+  pendingIds,
+  resumedRun,
+  saveRun,
+  type Run,
+} from './lib/store';
 import { fetchRun } from './lib/resume';
 import { runAsJson, submitRun } from './lib/submit';
 
@@ -12,12 +21,41 @@ const STATUSES: { value: QaStatus; label: string }[] = [
   { value: 'na', label: 'N/A' },
 ];
 
+/** "untested" is not a verdict, so it sits alongside them rather than among them. */
+type Filter = 'all' | 'untested' | QaStatus;
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'untested', label: 'Not tested' },
+  { value: 'fail', label: 'Failed' },
+  { value: 'blocked', label: 'Blocked' },
+  { value: 'pass', label: 'Passed' },
+  { value: 'na', label: 'N/A' },
+];
+
+function matches(test: QaTest, run: Run, filter: Filter, query: string): boolean {
+  const answer = run.answers[test.id];
+  if (filter === 'untested' && answer) return false;
+  if (filter !== 'all' && filter !== 'untested' && answer?.status !== filter) return false;
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return (
+    test.id.toLowerCase().includes(q) ||
+    test.feature.toLowerCase().includes(q) ||
+    test.what.toLowerCase().includes(q) ||
+    test.expected.toLowerCase().includes(q) ||
+    (run.answers[test.id]?.comment ?? '').toLowerCase().includes(q)
+  );
+}
+
 export default function App() {
   const [run, setRun] = useState<Run | null>(() => loadRun());
   const [suite, setSuite] = useState<QaSuite>('website');
   const [sectionKey, setSectionKey] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ kind: 'good' | 'bad'; text: string } | null>(null);
   const [sending, setSending] = useState(false);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [query, setQuery] = useState('');
 
   // Persist on every change. A pass runs to several hundred tests over more
   // than one sitting, so nothing is held only in memory.
@@ -28,6 +66,7 @@ export default function App() {
   const sections = useMemo(() => sectionsFor(suite), [suite]);
   const total = suite === 'website' ? WEBSITE_TOTAL : APP_TOTAL;
   const answered = run ? Object.keys(run.answers).length : 0;
+  const unsent = useMemo(() => (run ? pendingIds(run).length : 0), [run]);
 
   function setAnswer(testId: string, status: QaStatus) {
     setRun((r) =>
@@ -52,11 +91,19 @@ export default function App() {
     setBanner(null);
     const res = await submitRun(run);
     setSending(false);
-    setBanner(
-      res.ok
-        ? { kind: 'good', text: `Sent ${res.written} results to the sheet.` }
-        : { kind: 'bad', text: res.error ?? 'Could not send.' },
-    );
+
+    if (!res.ok) {
+      setBanner({ kind: 'bad', text: res.error ?? 'Could not send.' });
+      return;
+    }
+    // Only what went up is recorded as sent, so a case edited while the request
+    // was in flight stays pending and goes with the next send.
+    setRun((r) => (r ? markSent(r, res.ids ?? []) : r));
+    const n = res.written ?? 0;
+    setBanner({
+      kind: 'good',
+      text: `Sent ${n} ${n === 1 ? 'result' : 'results'}. The sheet now matches what you have marked; sending again writes nothing until you change something.`,
+    });
   }
 
   function onDownload() {
@@ -82,10 +129,14 @@ export default function App() {
           </div>
           <div className="top-meta">
             {run.tester} · {run.environment} · run {run.sessionId}
+            {run.resumed ? ' · continued' : ''}
           </div>
           <div className="top-spacer" />
           <div className="top-meta">
             {answered} of {total} answered
+            {/* Said here as well as on the button, because the thing a tester
+                worries about is whether their afternoon reached the sheet. */}
+            {unsent > 0 ? ` · ${unsent} not sent yet` : run.lastSentAt ? ' · all sent' : ''}
           </div>
           <div className="bar">
             <i style={{ width: `${total ? (answered / total) * 100 : 0}%` }} />
@@ -108,12 +159,26 @@ export default function App() {
             onOpen={setSectionKey}
             onSubmit={onSubmit}
             onDownload={onDownload}
+            onStatus={setAnswer}
+            onComment={setComment}
             sending={sending}
             answered={answered}
+            unsent={unsent}
+            filter={filter}
+            onFilter={setFilter}
+            query={query}
+            onQuery={setQuery}
             onReset={() => {
-              if (confirm('Start over? Everything answered in this run is discarded.')) {
+              const kept = Object.keys(run.sent ?? {}).length;
+              const warning = kept
+                ? `Start a new run?\n\nThis clears the ${answered} answers on this machine and gives you a new run ID. The ${kept} already sent stay in the sheet under run ${run.sessionId}; they are not deleted.`
+                : `Start a new run?\n\nThe ${answered} answers on this machine are discarded. Nothing has been sent to the sheet yet, so they are not kept anywhere.`;
+              if (confirm(warning)) {
                 clearRun();
                 setRun(null);
+                setFilter('all');
+                setQuery('');
+                setBanner(null);
               }
             }}
           />
@@ -124,6 +189,10 @@ export default function App() {
             onStatus={setAnswer}
             onComment={setComment}
             onBack={() => setSectionKey(null)}
+            filter={filter}
+            onFilter={setFilter}
+            query={query}
+            onQuery={setQuery}
           />
         )}
       </div>
@@ -222,6 +291,54 @@ function Start({ onStart }: { onStart: (run: Run) => void }) {
   );
 }
 
+/** The filter chips and the search box, shared by both views. */
+function FilterBar({
+  filter,
+  onFilter,
+  query,
+  onQuery,
+  counts,
+  untested,
+}: {
+  filter: Filter;
+  onFilter: (f: Filter) => void;
+  query: string;
+  onQuery: (q: string) => void;
+  counts: Record<QaStatus, number>;
+  untested: number;
+}) {
+  function count(f: Filter): number | null {
+    if (f === 'all') return null;
+    if (f === 'untested') return untested;
+    return counts[f];
+  }
+
+  return (
+    <div className="filters">
+      {FILTERS.map((f) => {
+        const n = count(f.value);
+        return (
+          <button
+            key={f.value}
+            className={`chip${filter === f.value ? ' on' : ''}`}
+            onClick={() => onFilter(f.value)}
+          >
+            {f.label}
+            {n !== null && <b>{n}</b>}
+          </button>
+        );
+      })}
+      <input
+        type="search"
+        className="search"
+        value={query}
+        onChange={(e) => onQuery(e.target.value)}
+        placeholder="Search cases and notes"
+      />
+    </div>
+  );
+}
+
 function Overview({
   suite,
   onSuite,
@@ -232,7 +349,14 @@ function Overview({
   onDownload,
   sending,
   answered,
+  unsent,
+  filter,
+  onFilter,
+  query,
+  onQuery,
   onReset,
+  onStatus,
+  onComment,
 }: {
   suite: QaSuite;
   onSuite: (s: QaSuite) => void;
@@ -243,13 +367,41 @@ function Overview({
   onDownload: () => void;
   sending: boolean;
   answered: number;
+  unsent: number;
+  filter: Filter;
+  onFilter: (f: Filter) => void;
+  query: string;
+  onQuery: (q: string) => void;
   onReset: () => void;
+  onStatus: (id: string, s: QaStatus) => void;
+  onComment: (id: string, c: string) => void;
 }) {
   const counts = useMemo(() => {
-    const c = { pass: 0, fail: 0, blocked: 0, na: 0 };
+    const c: Record<QaStatus, number> = { pass: 0, fail: 0, blocked: 0, na: 0 };
     for (const a of Object.values(run.answers)) c[a.status]++;
     return c;
   }, [run]);
+
+  const untested = useMemo(
+    () => sections.reduce((n, s) => n + s.tests.filter((t) => !run.answers[t.id]).length, 0),
+    [sections, run],
+  );
+
+  /*
+   * With a filter on, the section list is the wrong shape: somebody looking
+   * for what failed wants the failures, not the sections that contain some.
+   * So the page switches to the matching cases themselves, answerable where
+   * they stand, and switches back when the filter is cleared.
+   */
+  const filtering = filter !== 'all' || query.trim().length > 0;
+  const hits = useMemo(() => {
+    if (!filtering) return [];
+    const q = query.trim();
+    return sections
+      .map((s) => ({ section: s, tests: s.tests.filter((t) => matches(t, run, filter, q)) }))
+      .filter((g) => g.tests.length);
+  }, [filtering, sections, run, filter, query]);
+  const hitCount = hits.reduce((n, g) => n + g.tests.length, 0);
 
   return (
     <>
@@ -290,37 +442,157 @@ function Overview({
         </div>
       </div>
 
-      <div className="sections">
-        {sections.map((s) => {
-          const done = s.tests.filter((t) => run.answers[t.id]).length;
-          return (
-            <button
-              key={s.key}
-              className={`section-row${done === s.tests.length ? ' done' : ''}`}
-              onClick={() => onOpen(s.key)}
-            >
-              <span className="name">{s.title}</span>
-              <span className="count">
-                {done} / {s.tests.length}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <FilterBar
+        filter={filter}
+        onFilter={onFilter}
+        query={query}
+        onQuery={onQuery}
+        counts={counts}
+        untested={untested}
+      />
+
+      {filtering ? (
+        hitCount === 0 ? (
+          <div className="card">
+            <p style={{ margin: 0 }}>
+              Nothing matches. Clear the filter to see every section again.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="hits">
+              {hitCount} {hitCount === 1 ? 'case' : 'cases'} in this suite. You can answer
+              them here.
+            </p>
+            {hits.map((g) => (
+              <div key={g.section.key}>
+                <h2 className="group">{g.section.title}</h2>
+                <div className="card">
+                  {g.tests.map((t) => (
+                    <TestCard
+                      key={t.id}
+                      test={t}
+                      run={run}
+                      onStatus={onStatus}
+                      onComment={onComment}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        )
+      ) : (
+        <div className="sections">
+          {sections.map((s) => {
+            const done = s.tests.filter((t) => run.answers[t.id]).length;
+            const failed = s.tests.filter((t) => run.answers[t.id]?.status === 'fail').length;
+            return (
+              <button
+                key={s.key}
+                className={`section-row${done === s.tests.length ? ' done' : ''}`}
+                onClick={() => onOpen(s.key)}
+              >
+                <span className="name">{s.title}</span>
+                {failed > 0 && <span className="fails">{failed} failed</span>}
+                <span className="count">
+                  {done} / {s.tests.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="foot">
-        <button className="btn" onClick={onSubmit} disabled={sending || answered === 0}>
-          {sending ? 'Sending…' : 'Send to sheet'}
+        <button className="btn" onClick={onSubmit} disabled={sending || unsent === 0}>
+          {sending
+            ? 'Sending…'
+            : unsent === 0
+              ? answered === 0
+                ? 'Nothing to send yet'
+                : 'Everything is in the sheet'
+              : `Send ${unsent} to sheet`}
         </button>
         <button className="btn ghost" onClick={onDownload} disabled={answered === 0}>
           Download JSON
         </button>
         <div className="spacer" />
         <button className="btn ghost small" onClick={onReset}>
-          Start over
+          Start a new run
         </button>
       </div>
     </>
+  );
+}
+
+/** One case, with its verdict buttons and note. Used in both views. */
+function TestCard({
+  test,
+  run,
+  onStatus,
+  onComment,
+}: {
+  test: QaTest;
+  run: Run;
+  onStatus: (id: string, s: QaStatus) => void;
+  onComment: (id: string, c: string) => void;
+}) {
+  const answer = run.answers[test.id];
+  const sent = (run.sent ?? {})[test.id];
+  const edited = Boolean(answer && sent && sent !== answer.status + '\u0000' + (answer.comment ?? ''));
+
+  return (
+    <div className="test">
+      <div className="test-id">
+        {test.id}
+        {answer && !sent && <span className="tag">not sent</span>}
+        {edited && <span className="tag">edited since sending</span>}
+      </div>
+      <div className="test-title">{test.feature}</div>
+      <p style={{ margin: 0 }}>{test.what}</p>
+
+      <dl>
+        <dt>Before you start</dt>
+        <dd>{test.preconditions}</dd>
+        <dt>Steps</dt>
+        <dd>
+          <ol>
+            {test.steps.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ol>
+        </dd>
+        <dt>Expected</dt>
+        <dd>{test.expected}</dd>
+      </dl>
+
+      <div className="statuses">
+        {STATUSES.map((s) => (
+          <button
+            key={s.value}
+            className={`status-btn ${s.value}${answer?.status === s.value ? ' on' : ''}`}
+            onClick={() => onStatus(test.id, s.value)}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {answer && (
+        <div className="comment">
+          <textarea
+            placeholder={
+              answer.status === 'pass'
+                ? 'Anything worth noting (optional)'
+                : 'What happened? Steps, error text, anything the developer needs.'
+            }
+            value={answer.comment ?? ''}
+            onChange={(e) => onComment(test.id, e.target.value)}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -330,13 +602,33 @@ function SectionView({
   onStatus,
   onComment,
   onBack,
+  filter,
+  onFilter,
+  query,
+  onQuery,
 }: {
   section: QaSection;
   run: Run;
   onStatus: (id: string, s: QaStatus) => void;
   onComment: (id: string, c: string) => void;
   onBack: () => void;
+  filter: Filter;
+  onFilter: (f: Filter) => void;
+  query: string;
+  onQuery: (q: string) => void;
 }) {
+  const counts = useMemo(() => {
+    const c: Record<QaStatus, number> = { pass: 0, fail: 0, blocked: 0, na: 0 };
+    for (const t of section.tests) {
+      const a = run.answers[t.id];
+      if (a) c[a.status]++;
+    }
+    return c;
+  }, [section, run]);
+
+  const untested = section.tests.filter((t) => !run.answers[t.id]).length;
+  const shown = section.tests.filter((t) => matches(t, run, filter, query.trim()));
+
   return (
     <>
       <div className="foot" style={{ margin: '24px 0 6px' }}>
@@ -348,59 +640,29 @@ function SectionView({
       <h1>{section.title}</h1>
       <p>{section.blurb}</p>
 
-      <div className="card">
-        {section.tests.map((t) => {
-          const answer = run.answers[t.id];
-          return (
-            <div className="test" key={t.id}>
-              <div className="test-id">{t.id}</div>
-              <div className="test-title">{t.feature}</div>
-              <p style={{ margin: 0 }}>{t.what}</p>
+      <FilterBar
+        filter={filter}
+        onFilter={onFilter}
+        query={query}
+        onQuery={onQuery}
+        counts={counts}
+        untested={untested}
+      />
 
-              <dl>
-                <dt>Before you start</dt>
-                <dd>{t.preconditions}</dd>
-                <dt>Steps</dt>
-                <dd>
-                  <ol>
-                    {t.steps.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ol>
-                </dd>
-                <dt>Expected</dt>
-                <dd>{t.expected}</dd>
-              </dl>
-
-              <div className="statuses">
-                {STATUSES.map((s) => (
-                  <button
-                    key={s.value}
-                    className={`status-btn ${s.value}${answer?.status === s.value ? ' on' : ''}`}
-                    onClick={() => onStatus(t.id, s.value)}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-
-              {answer && (
-                <div className="comment">
-                  <textarea
-                    placeholder={
-                      answer.status === 'pass'
-                        ? 'Anything worth noting (optional)'
-                        : 'What happened? Steps, error text, anything the developer needs.'
-                    }
-                    value={answer.comment ?? ''}
-                    onChange={(e) => onComment(t.id, e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {shown.length === 0 ? (
+        <div className="card">
+          <p style={{ margin: 0 }}>
+            No case in this section matches. Clear the filter to see all{' '}
+            {section.tests.length}.
+          </p>
+        </div>
+      ) : (
+        <div className="card">
+          {shown.map((t) => (
+            <TestCard key={t.id} test={t} run={run} onStatus={onStatus} onComment={onComment} />
+          ))}
+        </div>
+      )}
 
       <div className="foot">
         <button className="btn" onClick={onBack}>

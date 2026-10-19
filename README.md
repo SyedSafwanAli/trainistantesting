@@ -32,6 +32,27 @@ afternoon of work.
    *Who has access: Anyone*. Copy the `/exec` URL.
 5. Share the Sheet with whoever needs to read results.
 
+### Sending more than once
+
+Send carries only what the sheet has not been told: answers given since the last
+send, and answers edited after they were sent. Pressing it twice in a row writes
+nothing the second time, and the button says so.
+
+The script matches on run id and test id, so a second send corrects the row it
+already has instead of adding another underneath. One row per case per run,
+whatever order things are sent in.
+
+This needs **both halves**. If you update the site and leave the old script in
+the Sheet, the site will send less but the script will still append, and a
+changed verdict will sit under the old one. After pulling these changes, paste
+`google-apps-script/Code.gs` into the Sheet's Apps Script editor again and
+**Deploy > Manage deployments > edit > New version**. The `/exec` URL does not
+change, so nothing needs reconfiguring.
+
+Rows written before this change are left alone. The script settles on the last
+row written for a case, which is the most recent verdict, so an old duplicate
+does not override a newer answer.
+
 ### Why "Anyone" is safe enough
 
 The form posts from a tester's browser with no Google account, so the endpoint
@@ -74,6 +95,19 @@ redeploy for it to take effect.
 for the mobile app across 13. Each case carries an id, what it is checking, what
 must be true first, numbered steps and the one observable outcome that decides
 pass or fail, so two testers reading the same case do the same thing.
+
+### Finding your way around a thousand cases
+
+The filter row sits above the list in both views. The chips narrow by verdict
+(not tested, failed, blocked, passed, N/A) and each carries its own count; the
+search box matches a case's id, name, description, expected result and the note
+you wrote on it.
+
+With a filter on, the page stops showing sections and shows the matching cases
+themselves, answerable where they stand. "Failed" is therefore one press away
+from a list of every failure in the suite, which is the view worth having at
+the end of a pass. Clearing the filter brings the sections back, and a section
+that holds failures says so in that list.
 
 ### Where to start
 

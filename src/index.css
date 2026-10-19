@@ -194,3 +194,86 @@ button { font: inherit; cursor: pointer; }
   .wrap { padding: 0 16px 80px; }
   h1 { font-size: 22px; }
 }
+
+/* ── Filtering ─────────────────────────────────────────────────────────────
+   A pass is a thousand cases, so "show me what failed" has to be one press
+   rather than a walk through sixty-eight sections. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 16px 0 14px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.chip:hover { border-color: var(--ink-2); }
+.chip.on {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+.chip b {
+  font-weight: 700;
+  font-size: 12px;
+  opacity: .75;
+  font-variant-numeric: tabular-nums;
+}
+.search {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.hits { color: var(--ink-2); font-size: 14px; margin: 0 0 10px; }
+h2.group {
+  font-size: 15px;
+  color: var(--ink-2);
+  margin: 18px 0 8px;
+  font-weight: 700;
+}
+
+/* A section that holds failures says so in the list, so nobody has to open
+   sixty-eight of them to find the one that went wrong. */
+.section-row .fails {
+  background: var(--fail-soft);
+  color: var(--fail);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  margin-left: auto;
+  margin-right: 10px;
+  white-space: nowrap;
+}
+
+/* Whether this answer has reached the sheet. The question a tester actually
+   has at the end of an afternoon. */
+.test-id .tag {
+  display: inline-block;
+  margin-left: 8px;
+  background: #fdf3e2;
+  border: 1px solid rgba(154, 91, 6, .3);
+  color: #7a4a06;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: none;
+}
