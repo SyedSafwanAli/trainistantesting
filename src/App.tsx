@@ -96,13 +96,34 @@ export default function App() {
       setBanner({ kind: 'bad', text: res.error ?? 'Could not send.' });
       return;
     }
-    // Only what went up is recorded as sent, so a case edited while the request
-    // was in flight stays pending and goes with the next send.
+    // Only what the sheet was afterwards confirmed to hold is recorded as sent.
+    // Anything else stays pending and goes again next time, which costs nothing
+    // now that a second send corrects rather than duplicates.
     setRun((r) => (r ? markSent(r, res.ids ?? []) : r));
-    const n = res.written ?? 0;
+
+    const sent = res.written ?? 0;
+    const kept = res.ids?.length ?? 0;
+    const lost = res.missing?.length ?? 0;
+
+    if (res.verified === false) {
+      setBanner({
+        kind: 'bad',
+        text: `Posted ${sent} ${sent === 1 ? 'result' : 'results'}, but the sheet could not be read back, so there is no proof it arrived. Nothing has been marked as sent. Press send again in a moment; if it keeps saying this, the sheet is not accepting writes.`,
+      });
+      return;
+    }
+
+    if (lost) {
+      setBanner({
+        kind: 'bad',
+        text: `Sent ${sent}, but the sheet only shows ${kept}. ${lost} did not save and are still waiting. The usual cause is the Drive being full, which makes the sheet read-only. Tell the developer before you carry on, and do not clear this run.`,
+      });
+      return;
+    }
+
     setBanner({
       kind: 'good',
-      text: `Sent ${n} ${n === 1 ? 'result' : 'results'}. The sheet now matches what you have marked; sending again writes nothing until you change something.`,
+      text: `Sent ${kept} ${kept === 1 ? 'result' : 'results'} and checked the sheet has them. Sending again writes nothing until you change something.`,
     });
   }
 

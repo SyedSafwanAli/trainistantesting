@@ -1,4 +1,5 @@
 import { TEST_INDEX } from '../matrix';
+import { fetchRun } from './resume';
 import { pendingIds, type Run } from './store';
 
 const SHEET_URL = import.meta.env.VITE_SHEET_URL as string | undefined;
@@ -6,9 +7,14 @@ const SHARED_KEY = import.meta.env.VITE_SHARED_KEY as string | undefined;
 
 export interface SubmitResult {
   ok: boolean;
+  /** How many were posted. */
   written?: number;
-  /** The ids that were sent, so the caller can record them as sent. */
+  /** The ids the sheet was afterwards confirmed to hold, and only those. */
   ids?: string[];
+  /** Posted but not found in the sheet afterwards. These were lost. */
+  missing?: string[];
+  /** False when the check could not run at all, so nothing is proven either way. */
+  verified?: boolean;
   error?: string;
 }
 
@@ -26,9 +32,20 @@ export interface SubmitResult {
  * send one; text/plain keeps the request "simple" so it goes straight through.
  * Apps Script reads the raw body either way.
  *
- * For the same reason the response cannot be read cross-origin, so this reports
- * success on delivery rather than on the script's reply. A failure to reach the
- * script still throws and is reported honestly.
+ * THE POST IS BLIND, SO THE RESULT IS CHECKED AFTERWARDS
+ * For the same CORS reason the reply cannot be read, and reporting success on
+ * delivery alone is not good enough: if the Sheet cannot be written to, the
+ * script fails, the browser sees an ordinary response, and a tester is told
+ * their afternoon was saved when it was not. A Drive that fills up turns the
+ * Sheet read-only and does exactly that, silently.
+ *
+ * So the send is followed by a read of the same run, through the JSONP route
+ * that resume already uses, and only what the sheet is then confirmed to hold
+ * is treated as sent. Anything missing stays pending and goes again next time,
+ * which costs nothing now the script corrects rather than appends.
+ *
+ * A read that cannot run proves nothing either way. That is reported as
+ * unconfirmed rather than as failure, and those answers stay pending.
  */
 export async function submitRun(run: Run): Promise<SubmitResult> {
   if (!SHEET_URL) {
@@ -70,13 +87,34 @@ export async function submitRun(run: Run): Promise<SubmitResult> {
         results,
       }),
     });
-    return { ok: true, written: results.length, ids };
   } catch (err) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : 'Could not reach the sheet.',
     };
   }
+
+  // The post is away. Now find out whether the sheet actually took it.
+  const check = await fetchRun(run.sessionId);
+  if (!check.ok) {
+    return { ok: true, written: results.length, ids: [], verified: false };
+  }
+
+  const inSheet = check.answers ?? {};
+  const confirmed: string[] = [];
+  const missing: string[] = [];
+  for (const id of ids) {
+    if (inSheet[id] === run.answers[id].status) confirmed.push(id);
+    else missing.push(id);
+  }
+
+  return {
+    ok: true,
+    written: results.length,
+    ids: confirmed,
+    missing,
+    verified: true,
+  };
 }
 
 /** The same payload the sheet receives, for the tester to keep or send on. */

@@ -32,6 +32,31 @@ afternoon of work.
    *Who has access: Anyone*. Copy the `/exec` URL.
 5. Share the Sheet with whoever needs to read results.
 
+### The send is checked, not assumed
+
+The browser cannot read the script's reply: Apps Script sends no
+`Access-Control-Allow-Origin`, so the post goes out blind. Reporting success on
+delivery alone is not good enough, because a Sheet that cannot be written to
+still answers the request normally. **A full Drive turns the Sheet read-only**,
+and that is exactly how an afternoon of testing disappears while the tester is
+told it was saved.
+
+So a send is followed by a read of the same run, through the same JSONP route
+resume uses, and only what the sheet is then confirmed to hold counts as sent.
+Anything missing stays pending and goes again next time, which costs nothing now
+that a second send corrects rather than appends.
+
+Three things the tester can be told, and all three are true when shown:
+
+- sent and confirmed in the sheet
+- sent, but the sheet shows fewer than went up, naming how many are still
+  waiting and that a full Drive is the usual cause
+- posted, but the sheet could not be read back, so nothing is claimed either way
+  and nothing is marked as sent
+
+Keep an eye on the Drive's free space. There is no way for this form to warn
+about it in advance; it can only notice afterwards that a write did not land.
+
 ### Sending more than once
 
 Send carries only what the sheet has not been told: answers given since the last
