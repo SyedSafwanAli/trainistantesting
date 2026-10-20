@@ -1,6 +1,9 @@
 import { TEST_INDEX } from '../matrix';
+import type { QaStatus } from '../matrix/types';
 import { fetchRun } from './resume';
-import { pendingIds, type Run } from './store';
+import { pendingIds, type Answer, type Run } from './store';
+
+const STATUSES: QaStatus[] = ['pass', 'fail', 'blocked', 'na'];
 
 const SHEET_URL = import.meta.env.VITE_SHEET_URL as string | undefined;
 const SHARED_KEY = import.meta.env.VITE_SHARED_KEY as string | undefined;
@@ -143,4 +146,51 @@ export function runAsJson(run: Run): string {
     null,
     2,
   );
+}
+
+export interface LoadedAnswers {
+  /** Rows that matched a test in the checklist. */
+  answers: Record<string, Answer>;
+  /** Ids in the file that this checklist does not have, or with a bad status. */
+  skipped: string[];
+}
+
+/**
+ * Read answers back out of a file written by runAsJson.
+ *
+ * Testing a stretch of the checklist somewhere else, or on somebody else's
+ * machine, used to have no way home: the sheet hands back verdicts but not
+ * notes, so a resume lost every comment, and the comments are the part worth
+ * having. A file carries both.
+ *
+ * The caller merges this into the run rather than replacing it, so loading one
+ * suite's results does not discard the other's. Rows arrive unsent, which is
+ * what they are, so the next send carries them to the sheet.
+ *
+ * Anything the matrix does not know is skipped and reported rather than
+ * stored: an id that is not a test would sit in the run forever, counted by
+ * nothing and refused by the sheet.
+ */
+export function answersFromJson(text: string): LoadedAnswers {
+  const parsed = JSON.parse(text) as { results?: unknown };
+  const rows = Array.isArray(parsed?.results) ? parsed.results : null;
+  if (!rows) throw new Error('no results array');
+
+  const answers: Record<string, Answer> = {};
+  const skipped: string[] = [];
+
+  for (const row of rows) {
+    const r = (row ?? {}) as { testId?: unknown; status?: unknown; comment?: unknown };
+    const id = typeof r.testId === 'string' ? r.testId.trim() : '';
+    const status = String(r.status ?? '').toLowerCase() as QaStatus;
+    if (!id) continue;
+    if (!TEST_INDEX.has(id) || !STATUSES.includes(status)) {
+      skipped.push(id);
+      continue;
+    }
+    const comment = typeof r.comment === 'string' ? r.comment.trim() : '';
+    answers[id] = comment ? { status, comment } : { status };
+  }
+
+  return { answers, skipped };
 }

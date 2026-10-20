@@ -9,10 +9,11 @@ import {
   pendingIds,
   resumedRun,
   saveRun,
+  signature,
   type Run,
 } from './lib/store';
 import { fetchRun } from './lib/resume';
-import { runAsJson, submitRun } from './lib/submit';
+import { answersFromJson, runAsJson, submitRun, type LoadedAnswers } from './lib/submit';
 
 const STATUSES: { value: QaStatus; label: string }[] = [
   { value: 'pass', label: 'Pass' },
@@ -141,6 +142,47 @@ export default function App() {
     });
   }
 
+  /*
+   * Load a stretch of testing done elsewhere.
+   *
+   * Merged into the answers, never replacing them, so a file covering one
+   * suite leaves the other alone. The loaded rows are not recorded as sent,
+   * because the sheet has not been told about them, so the next send carries
+   * them with their notes.
+   */
+  async function onLoadFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !run) return;
+
+    let loaded: LoadedAnswers;
+    try {
+      loaded = answersFromJson(await file.text());
+    } catch {
+      setBanner({ kind: 'bad', text: 'That file is not a QA export. Use one from Download JSON.' });
+      return;
+    }
+
+    const ids = Object.keys(loaded.answers);
+    if (ids.length === 0) {
+      setBanner({ kind: 'bad', text: 'Nothing in that file matched a case in this checklist.' });
+      return;
+    }
+
+    const changed = ids.filter(
+      (id) => !run.answers[id] || signature(run.answers[id]) !== signature(loaded.answers[id]),
+    ).length;
+
+    setRun((r) => (r ? { ...r, answers: { ...r.answers, ...loaded.answers } } : r));
+    setBanner({
+      kind: 'good',
+      text:
+        `Loaded ${ids.length} ${ids.length === 1 ? 'result' : 'results'}` +
+        (changed ? `, ${changed} new or changed` : ', none of them new') +
+        (loaded.skipped.length ? `. ${loaded.skipped.length} skipped as unknown.` : '.'),
+    });
+  }
+
   function onDownload() {
     if (!run) return;
     const blob = new Blob([runAsJson(run)], { type: 'application/json' });
@@ -194,6 +236,7 @@ export default function App() {
             onOpen={setSectionKey}
             onSubmit={onSubmit}
             onDownload={onDownload}
+            onLoadFile={onLoadFile}
             onStatus={setAnswer}
             onComment={setComment}
             sending={sending}
@@ -382,6 +425,7 @@ function Overview({
   onOpen,
   onSubmit,
   onDownload,
+  onLoadFile,
   sending,
   answered,
   unsent,
@@ -400,6 +444,7 @@ function Overview({
   onOpen: (key: string) => void;
   onSubmit: () => void;
   onDownload: () => void;
+  onLoadFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
   sending: boolean;
   answered: number;
   unsent: number;
@@ -560,6 +605,15 @@ function Overview({
         <button className="btn ghost" onClick={onDownload} disabled={answered === 0}>
           Download JSON
         </button>
+        <label className="btn ghost">
+          Load JSON
+          <input
+            type="file"
+            accept="application/json,.json"
+            onChange={onLoadFile}
+            style={{ display: 'none' }}
+          />
+        </label>
         <div className="spacer" />
         <button className="btn ghost small" onClick={onReset}>
           Start a new run
