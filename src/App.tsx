@@ -65,7 +65,21 @@ export default function App() {
 
   const sections = useMemo(() => sectionsFor(suite), [suite]);
   const total = suite === 'website' ? WEBSITE_TOTAL : APP_TOTAL;
-  const answered = run ? Object.keys(run.answers).length : 0;
+  /*
+   * Count the suite you are looking at, not every answer in the run.
+   *
+   * This was every answer in the run against one suite's total, so opening
+   * the app tab after a website pass read "798 of 234 answered" and filled
+   * the progress bar. Counting the way `untested` already does keeps the two
+   * halves of the same line talking about the same thing.
+   */
+  const answered = useMemo(
+    () =>
+      run
+        ? sections.reduce((n, s) => n + s.tests.filter((t) => run.answers[t.id]).length, 0)
+        : 0,
+    [sections, run],
+  );
   const unsent = useMemo(() => (run ? pendingIds(run).length : 0), [run]);
 
   function setAnswer(testId: string, status: QaStatus) {
@@ -397,11 +411,19 @@ function Overview({
   onStatus: (id: string, s: QaStatus) => void;
   onComment: (id: string, c: string) => void;
 }) {
+  // Scoped to the sections on screen, for the same reason `answered` is: the
+  // chips sat above one suite's list while counting both, so the app tab
+  // offered "Passed 515" and then showed nothing passed in it.
   const counts = useMemo(() => {
     const c: Record<QaStatus, number> = { pass: 0, fail: 0, blocked: 0, na: 0 };
-    for (const a of Object.values(run.answers)) c[a.status]++;
+    for (const s of sections) {
+      for (const t of s.tests) {
+        const a = run.answers[t.id];
+        if (a) c[a.status]++;
+      }
+    }
     return c;
-  }, [run]);
+  }, [sections, run]);
 
   const untested = useMemo(
     () => sections.reduce((n, s) => n + s.tests.filter((t) => !run.answers[t.id]).length, 0),
