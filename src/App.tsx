@@ -29,6 +29,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'untested', label: 'Not tested' },
   { value: 'fail', label: 'Failed' },
+  { value: 'solved', label: 'Solved' },
   { value: 'blocked', label: 'Blocked' },
   { value: 'pass', label: 'Passed' },
   { value: 'na', label: 'N/A' },
@@ -460,7 +461,7 @@ function Overview({
   // chips sat above one suite's list while counting both, so the app tab
   // offered "Passed 515" and then showed nothing passed in it.
   const counts = useMemo(() => {
-    const c: Record<QaStatus, number> = { pass: 0, fail: 0, blocked: 0, na: 0 };
+    const c: Record<QaStatus, number> = { pass: 0, fail: 0, blocked: 0, na: 0, solved: 0 };
     for (const s of sections) {
       for (const t of s.tests) {
         const a = run.answers[t.id];
@@ -645,6 +646,13 @@ function TestCard({
         {test.id}
         {answer && !sent && <span className="tag">not sent</span>}
         {edited && <span className="tag">edited since sending</span>}
+        {/*
+          A solved case is shown but not offered as a button: 'solved' is the
+          developer's answer to a failure, not a verdict a tester hands down.
+          Pressing Fail or Pass still works and is the point, because re-testing
+          it is what clears it.
+        */}
+        {answer?.status === 'solved' && <span className="tag solved">solved, re-test</span>}
       </div>
       <div className="test-title">{test.feature}</div>
       <p style={{ margin: 0 }}>{test.what}</p>
@@ -715,7 +723,7 @@ function SectionView({
   onQuery: (q: string) => void;
 }) {
   const counts = useMemo(() => {
-    const c: Record<QaStatus, number> = { pass: 0, fail: 0, blocked: 0, na: 0 };
+    const c: Record<QaStatus, number> = { pass: 0, fail: 0, blocked: 0, na: 0, solved: 0 };
     for (const t of section.tests) {
       const a = run.answers[t.id];
       if (a) c[a.status]++;

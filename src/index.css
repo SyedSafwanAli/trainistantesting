@@ -19,6 +19,10 @@
   --blocked-soft: #fdf3e2;
   --na: #5b6677;
   --na-soft: #eef1f5;
+  /* A fail a developer has dealt with. Blue, so it reads as neither a pass
+     nor a failure: it is a case waiting to be re-tested. */
+  --solved: #1b5fa8;
+  --solved-soft: #e8f1fb;
 
   color-scheme: light;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -159,6 +163,8 @@ button { font: inherit; cursor: pointer; }
 .status-btn.on.fail    { background: var(--fail-soft);    border-color: var(--fail);    color: var(--fail); }
 .status-btn.on.blocked { background: var(--blocked-soft); border-color: var(--blocked); color: var(--blocked); }
 .status-btn.on.na      { background: var(--na-soft);      border-color: var(--na);      color: var(--na); }
+/* No status button for 'solved' (see QaStatus), but the filter chip uses it. */
+.status-btn.on.solved  { background: var(--solved-soft);  border-color: var(--solved);  color: var(--solved); }
 
 .comment { margin-top: 10px; }
 
@@ -276,4 +282,11 @@ h2.group {
   font-weight: 700;
   letter-spacing: .02em;
   text-transform: none;
+}
+
+/* Solved is a state, not a warning, so it does not borrow the amber. */
+.test-id .tag.solved {
+  background: var(--solved-soft);
+  border-color: rgba(27, 95, 168, .3);
+  color: var(--solved);
 }

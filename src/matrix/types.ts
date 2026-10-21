@@ -10,7 +10,19 @@
  */
 
 export type QaSuite = 'website' | 'app';
-export type QaStatus = 'pass' | 'fail' | 'blocked' | 'na';
+/**
+ * 'solved' is not a tester's verdict, it is a developer's answer to one.
+ *
+ * A case the tester failed and a developer has since fixed sat in the sheet as
+ * 'fail' forever, because nobody re-runs 600 cases to clear a backlog and
+ * marking it 'pass' would claim a check that nobody did. So a fail that has
+ * been dealt with is recorded as its own thing: the failure is still on record,
+ * and what is left to re-test is whatever is still 'fail'.
+ *
+ * It does not mean "verified on the environment". The comment on each solved
+ * row says where the fix landed and whether it is deployed yet.
+ */
+export type QaStatus = 'pass' | 'fail' | 'blocked' | 'na' | 'solved';
 export type QaSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type QaFrequency = 'always' | 'sometimes' | 'once';
 

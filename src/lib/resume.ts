@@ -3,7 +3,9 @@ import type { QaStatus } from '../matrix/types';
 const SHEET_URL = import.meta.env.VITE_SHEET_URL as string | undefined;
 const SHARED_KEY = import.meta.env.VITE_SHARED_KEY as string | undefined;
 
-const VALID: QaStatus[] = ['pass', 'fail', 'blocked', 'na'];
+// 'solved' included, or resuming a run would silently drop every case a
+// developer has already dealt with and offer it back as untested.
+const VALID: QaStatus[] = ['pass', 'fail', 'blocked', 'na', 'solved'];
 
 export interface ResumeResult {
   ok: boolean;

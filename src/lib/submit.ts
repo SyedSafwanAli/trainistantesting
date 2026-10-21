@@ -3,7 +3,7 @@ import type { QaStatus } from '../matrix/types';
 import { fetchRun } from './resume';
 import { pendingIds, type Answer, type Run } from './store';
 
-const STATUSES: QaStatus[] = ['pass', 'fail', 'blocked', 'na'];
+const STATUSES: QaStatus[] = ['pass', 'fail', 'blocked', 'na', 'solved'];
 
 const SHEET_URL = import.meta.env.VITE_SHEET_URL as string | undefined;
 const SHARED_KEY = import.meta.env.VITE_SHARED_KEY as string | undefined;
