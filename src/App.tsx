@@ -10,8 +10,7 @@ import {
   resumedRun,
   saveRun,
   signature,
-  type Run,
-} from './lib/store';
+  type Run, refreshedFromSheet } from './lib/store';
 import { fetchRun } from './lib/resume';
 import { answersFromJson, runAsJson, submitRun, type LoadedAnswers } from './lib/submit';
 
@@ -56,6 +55,7 @@ export default function App() {
   const [sectionKey, setSectionKey] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ kind: 'good' | 'bad'; text: string } | null>(null);
   const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
 
@@ -98,6 +98,48 @@ export default function App() {
       // has been chosen. Otherwise a stray note would count as a tested case.
       if (!existing) return r;
       return { ...r, answers: { ...r.answers, [testId]: { ...existing, comment } } };
+    });
+  }
+
+  /**
+   * Pull the sheet's statuses into the run that is already open.
+   *
+   * Resuming only existed on the start screen, so once a tester was in a run
+   * there was no way to see a status changed since they loaded it: a failure a
+   * developer had fixed and marked solved still read fail on their screen, and
+   * the only route to it was to abandon the run and resume. Statuses the sheet
+   * knows win; answers only this browser has are kept, because those are unsent
+   * and a refresh must not be a way to lose an afternoon.
+   */
+  async function onRefresh() {
+    if (!run) return;
+    setRefreshing(true);
+    setBanner(null);
+    const res = await fetchRun(run.sessionId);
+    setRefreshing(false);
+
+    if (!res.ok) {
+      setBanner({ kind: 'bad', text: res.error ?? 'Could not read the sheet.' });
+      return;
+    }
+    const fromSheet = res.answers ?? {};
+    const incoming = Object.keys(fromSheet).length;
+    if (!incoming) {
+      setBanner({ kind: 'bad', text: `The sheet has no answers for run ${run.sessionId}.` });
+      return;
+    }
+
+    // Counted before the merge, or the comparison is against itself.
+    const changed = Object.entries(fromSheet).filter(
+      ([id, status]) => run.answers[id]?.status !== status,
+    ).length;
+
+    setRun((r) => (r ? refreshedFromSheet(r, fromSheet) : r));
+    setBanner({
+      kind: 'good',
+      text: changed
+        ? `Read ${incoming} answers from the sheet; ${changed} ${changed === 1 ? 'differs' : 'differ'} from what was on this screen and ${changed === 1 ? 'has' : 'have'} been updated.`
+        : `Read ${incoming} answers from the sheet. Nothing had changed since you loaded this run.`,
     });
   }
 
@@ -236,11 +278,13 @@ export default function App() {
             run={run}
             onOpen={setSectionKey}
             onSubmit={onSubmit}
+            onRefresh={onRefresh}
             onDownload={onDownload}
             onLoadFile={onLoadFile}
             onStatus={setAnswer}
             onComment={setComment}
             sending={sending}
+            refreshing={refreshing}
             answered={answered}
             unsent={unsent}
             filter={filter}
@@ -425,9 +469,11 @@ function Overview({
   run,
   onOpen,
   onSubmit,
+  onRefresh,
   onDownload,
   onLoadFile,
   sending,
+  refreshing,
   answered,
   unsent,
   filter,
@@ -444,9 +490,11 @@ function Overview({
   run: Run;
   onOpen: (key: string) => void;
   onSubmit: () => void;
+  onRefresh: () => void;
   onDownload: () => void;
   onLoadFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
   sending: boolean;
+  refreshing: boolean;
   answered: number;
   unsent: number;
   filter: Filter;
@@ -602,6 +650,12 @@ function Overview({
                 ? 'Nothing to send yet'
                 : 'Everything is in the sheet'
               : `Send ${unsent} to sheet`}
+        </button>
+        {/* The sheet is the shared record and a developer changes it while a
+            tester is mid-run, so there has to be a way to pick that up without
+            abandoning the run. */}
+        <button className="btn ghost" onClick={onRefresh} disabled={refreshing}>
+          {refreshing ? 'Reading the sheet…' : 'Refresh from sheet'}
         </button>
         <button className="btn ghost" onClick={onDownload} disabled={answered === 0}>
           Download JSON

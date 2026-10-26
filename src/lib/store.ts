@@ -114,6 +114,40 @@ export function resumedRun(
   };
 }
 
+/**
+ * Take the sheet's answers into a run that is already open.
+ *
+ * Resuming could only happen on the start screen, so a tester sitting in a run
+ * had no way to see a status a developer had changed since: a case fixed and
+ * marked solved in the sheet still read fail on their screen, and the only way
+ * to pick it up was to abandon the run and resume it. This is that, without
+ * the abandoning.
+ *
+ * Where both sides have an answer the sheet wins, because adopting it is the
+ * whole point of pressing refresh. Where only this browser has one it is kept:
+ * that is work the tester has done and not sent, and a refresh must never be a
+ * way to lose it. Anything the sheet handed over counts as already sent, so a
+ * later send does not write it back.
+ */
+export function refreshedFromSheet(
+  run: Run,
+  answers: Record<string, Answer['status']>,
+): Run {
+  const merged: Run['answers'] = { ...run.answers };
+  const sent = { ...run.sent };
+
+  for (const [id, status] of Object.entries(answers)) {
+    const local = run.answers[id];
+    // The comment stays on a row the sheet also knows, because the sheet never
+    // hands comments back and dropping the tester's note would be a silent
+    // loss of the most useful thing on the row.
+    merged[id] = local ? { ...local, status } : { status };
+    sent[id] = signature(merged[id]);
+  }
+
+  return { ...run, answers: merged, sent, resumed: true };
+}
+
 export function loadRun(): Run | null {
   try {
     const raw = localStorage.getItem(KEY);
