@@ -84,18 +84,22 @@ export function markSent(run: Run, ids: string[]): Run {
  * The id is kept, so continuing from home writes under the same run as the
  * morning's work in the office rather than splitting one pass in two.
  *
- * Comments come back empty because the sheet does not hand them out. They are
- * not lost: they were submitted with the original answers and are sitting in
- * the sheet already.
+ * Comments come back only when a reader key was given, because the sheet hands
+ * them out to nothing else. Without one they are not lost either: they were
+ * submitted with the original answers and are sitting in the sheet already.
  */
 export function resumedRun(
   sessionId: string,
   tester: string,
   environment: string,
   answers: Record<string, Answer['status']>,
+  comments?: Record<string, string>,
 ): Run {
-  const rebuilt = Object.fromEntries(
-    Object.entries(answers).map(([id, status]) => [id, { status }]),
+  const rebuilt: Run['answers'] = Object.fromEntries(
+    Object.entries(answers).map(([id, status]) => {
+      const comment = comments?.[id]?.trim();
+      return [id, comment ? { status, comment } : { status }];
+    }),
   );
   return {
     sessionId,
@@ -104,9 +108,9 @@ export function resumedRun(
     startedAt: new Date().toISOString(),
     answers: rebuilt,
     // These came back out of the sheet, so the sheet already has them and a
-    // send must not write them again. They are recorded with an empty comment
-    // because that is what was rebuilt here; touching the note on one makes it
-    // pending again and the sheet is corrected.
+    // send must not write them again. The signature covers whatever note came
+    // back with them, so a row rebuilt complete is not pending; touching the
+    // note on one makes it pending again and the sheet is corrected.
     sent: Object.fromEntries(
       Object.entries(rebuilt).map(([id, a]) => [id, signature(a)]),
     ),
@@ -126,23 +130,38 @@ export function resumedRun(
  * Where both sides have an answer the sheet wins, because adopting it is the
  * whole point of pressing refresh. Where only this browser has one it is kept:
  * that is work the tester has done and not sent, and a refresh must never be a
- * way to lose it. Anything the sheet handed over counts as already sent, so a
- * later send does not write it back.
+ * way to lose it.
+ *
+ * NOTES ARE TRICKIER THAN STATUSES, AND GETTING IT WRONG DESTROYS THEM.
+ * A send rewrites the whole row, comment column included. So on a row where the
+ * tester has typed nothing, the sheet's note is adopted: carrying an empty
+ * comment into a row that is pending for any other reason would blank a
+ * recorded note on the next send, which is how the long reasons on the blocked
+ * cases would have been lost. Where the tester has typed something, theirs
+ * wins and the row stays pending, because replacing the note is what they were
+ * doing. Anything taken from the sheet whole counts as already sent.
  */
 export function refreshedFromSheet(
   run: Run,
   answers: Record<string, Answer['status']>,
+  comments?: Record<string, string>,
 ): Run {
   const merged: Run['answers'] = { ...run.answers };
   const sent = { ...run.sent };
 
   for (const [id, status] of Object.entries(answers)) {
     const local = run.answers[id];
-    // The comment stays on a row the sheet also knows, because the sheet never
-    // hands comments back and dropping the tester's note would be a silent
-    // loss of the most useful thing on the row.
-    merged[id] = local ? { ...local, status } : { status };
-    sent[id] = signature(merged[id]);
+    const typedHere = local?.comment?.trim() ? local.comment : undefined;
+    // Undefined, not '', when no reader key was used: there is nothing to adopt
+    // and the row keeps whatever it already had.
+    const fromSheet = comments ? comments[id]?.trim() || undefined : undefined;
+    const comment = typedHere ?? fromSheet;
+
+    merged[id] = comment ? { status, comment } : { status };
+
+    // Only a row taken from the sheet whole is in step with it. One carrying
+    // the tester's own note is left pending so that note still gets sent.
+    if (!typedHere) sent[id] = signature(merged[id]);
   }
 
   return { ...run, answers: merged, sent, resumed: true };

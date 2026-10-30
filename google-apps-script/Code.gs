@@ -17,17 +17,48 @@
  * endpoint has to be reachable without sign-in. SHARED_KEY turns away anything
  * that is not the form.
  *
- * doGet EXISTS ONLY TO RESUME A RUN, AND RETURNS NO COMMENTS
+ * doGet EXISTS ONLY TO RESUME A RUN, AND NEEDS A SECOND KEY FOR COMMENTS
  * A tester who starts in the office and continues at home needs their place
  * back, and a browser cannot see another device's storage. So doGet hands back
- * which test ids were answered and with what status, and nothing else. The
- * comments are the sensitive part, the actual notes on what is broken, and they
- * never leave the sheet. Reading those still means opening the sheet, which is
- * behind Google's own sharing.
+ * which test ids were answered and with what status.
+ *
+ * The comments are the sensitive part, the actual notes on what is broken, so
+ * they are not in that answer. SHARED_KEY cannot buy them: it ships inside the
+ * form's JavaScript bundle, which means anybody who opens the tracker has it,
+ * and returning comments to it would publish every QA note on the platform.
+ * READER_KEY is the one that buys them. It is not in this file and not in the
+ * bundle; it is set as a script property on this project, and a tester pastes
+ * it into the tracker once and their browser keeps it. With no reader key the
+ * answer is statuses only, exactly as before.
  */
 
 // Change this, and put the same value in the form's VITE_SHARED_KEY.
 const SHARED_KEY = '3e6c31ecd956b804f09046b98ccc075e';
+
+/**
+ * The key that buys the comments back out of the sheet, and nothing else.
+ *
+ * ITS VALUE IS DELIBERATELY NOT IN THIS FILE.
+ * This file lives in a public GitHub repository, so a key written here would be
+ * readable by anybody and would protect nothing. It is not a VITE_ variable
+ * either: Vite bakes those into the bundle it serves, which would hand it to
+ * every visitor of the tracker.
+ *
+ * It lives in the one place that is neither published nor served: this script's
+ * own properties. In the Apps Script editor, Project Settings > Script
+ * properties > Add script property, named READER_KEY.
+ *
+ * Unset, or set to nothing, means comment reading is off and doGet behaves
+ * exactly as it did before it existed.
+ */
+function readerKey() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty('READER_KEY') || '';
+  } catch (err) {
+    // A script with no properties access must fail closed, not open.
+    return '';
+  }
+}
 
 const HEADERS = [
   'Submitted at',
@@ -44,6 +75,7 @@ const HEADERS = [
 const COL_SESSION = 2; // 1-based, matches HEADERS
 const COL_TEST_ID = 6;
 const COL_STATUS = 8;
+const COL_COMMENT = 9;
 
 function doPost(e) {
   try {
@@ -142,7 +174,13 @@ function doGet(e) {
 
   // Later rows win, so a test answered twice resumes as whatever it was
   // changed to rather than what it first was.
+  // An unset READER_KEY means comment reading is off, and must not be
+  // satisfiable by sending reader= with nothing after it.
+  const expectedReader = readerKey();
+  const canReadComments = Boolean(expectedReader) && String(p.reader || '') === expectedReader;
+
   const answers = {};
+  const comments = canReadComments ? {} : null;
   let found = 0;
 
   const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
@@ -162,12 +200,21 @@ function doGet(e) {
       const status = String(row[COL_STATUS - 1] || '').trim();
       if (!testId || !status) continue;
       answers[testId] = status;
+      if (comments) {
+        // Written even when blank, so that resuming a run shows a row whose
+        // note was later cleared as having none rather than as unknown.
+        comments[testId] = String(row[COL_COMMENT - 1] || '').trim();
+      }
       found++;
     }
   }
 
-  // Deliberately no comments in this payload. See the note at the top.
-  return reply({ ok: true, session: session, rows: found, answers: answers }, callback);
+  // 'comments' is absent, not empty, when the reader key was not given. The
+  // tracker tells those apart: absent means it never asked and must keep the
+  // notes already on screen, empty means the sheet holds none.
+  const payload = { ok: true, session: session, rows: found, answers: answers };
+  if (comments) payload.comments = comments;
+  return reply(payload, callback);
 }
 
 /**

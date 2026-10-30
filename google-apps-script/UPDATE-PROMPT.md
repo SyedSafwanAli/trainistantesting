@@ -4,23 +4,33 @@ Open the Google Sheet that receives the QA results, then give Claude in Chrome
 everything below the line. It is written to be pasted whole: the script is
 included, so nothing needs fetching.
 
-The one thing that must not go wrong is the deployment step. "New deployment"
-mints a new /exec URL and the QA form would go on posting to the old one, which
-would look like the update did nothing. It has to be "Manage deployments", then
-edit the existing one, then New version.
+Two things must not go wrong.
+
+1. **The deployment step.** "New deployment" mints a new /exec URL and the QA
+   form would go on posting to the old one, which would look like the update did
+   nothing. It has to be "Manage deployments", then edit the existing one, then
+   New version.
+2. **The reader key is not in the script.** It is set separately, as a script
+   property. Anyone who skips that step gets the old behaviour back, which is
+   safe but means the notes still will not load. The value is not written down
+   in this repository on purpose: this repository is public, and a key in it
+   would protect nothing.
 
 ---
 
 I am on a Google Sheet that collects QA test results. It has an Apps Script
 attached to it that receives results from a form at trainistan-qa.netlify.app.
 
-I need you to replace that script with a newer version and redeploy it, without
-changing its web app URL.
+I need you to replace that script with a newer version, add one script property,
+and redeploy it, without changing its web app URL.
 
-What the change is for: the old script appended every result it was sent, so a
-tester who sent twice got duplicate rows, and a verdict they had changed landed
-underneath the one it replaced. The new version matches on run id and test id
-and overwrites the row it already has.
+What the change is for: the tracker could read a run's statuses back out of the
+sheet but never the comments, so a case marked Blocked came back with an empty
+note box and the reason it was blocked could only be read by opening the sheet.
+That was deliberate, because the key the form uses is inside the form's own
+JavaScript and therefore public, and comments are the notes on what is broken.
+The new version returns comments as well, but only to a second key that is kept
+out of both the form and the repository.
 
 Please do this:
 
@@ -29,18 +39,24 @@ Please do this:
 3. Paste the code I give at the end of this message in its place.
 4. Save the project (the disk icon, or Ctrl+S). Tell me if it reports a syntax
    error rather than carrying on.
-5. Deploy > Manage deployments.
-6. IMPORTANT: do not use "New deployment". That would create a second web app
-   with a different URL and the form would keep posting to the old one. Instead,
-   on the existing deployment, click the pencil (edit) icon.
-7. Set Version to "New version", leave everything else exactly as it is
-   (Execute as: Me, Who has access: Anyone), and press Deploy.
-8. Copy the Web app URL it shows afterwards and tell me what it is, so I can
-   check it did not change.
+5. Open Project Settings, the gear icon in the left rail.
+6. Scroll to Script properties and press "Add script property".
+7. Property name: `READER_KEY`. For the value, ask me for it and paste what I
+   give you. Do not invent one, and do not write it back to me afterwards.
+8. Press "Save script properties".
+9. Deploy > Manage deployments.
+10. IMPORTANT: do not use "New deployment". That would create a second web app
+    with a different URL and the form would keep posting to the old one.
+    Instead, on the existing deployment, click the pencil (edit) icon.
+11. Set Version to "New version", leave everything else exactly as it is
+    (Execute as: Me, Who has access: Anyone), and press Deploy.
+12. Copy the Web app URL it shows afterwards and tell me what it is, so I can
+    check it did not change.
 
-Then confirm two things back to me:
+Then confirm three things back to me:
 - the deployment version number went up
 - the /exec URL is the same as before
+- a script property named READER_KEY is listed, without telling me its value
 
 Do not change any value inside the script, in particular the SHARED_KEY line.
 It has to stay exactly as pasted or the form will be turned away.
@@ -67,17 +83,48 @@ Here is the code to paste:
  * endpoint has to be reachable without sign-in. SHARED_KEY turns away anything
  * that is not the form.
  *
- * doGet EXISTS ONLY TO RESUME A RUN, AND RETURNS NO COMMENTS
+ * doGet EXISTS ONLY TO RESUME A RUN, AND NEEDS A SECOND KEY FOR COMMENTS
  * A tester who starts in the office and continues at home needs their place
  * back, and a browser cannot see another device's storage. So doGet hands back
- * which test ids were answered and with what status, and nothing else. The
- * comments are the sensitive part, the actual notes on what is broken, and they
- * never leave the sheet. Reading those still means opening the sheet, which is
- * behind Google's own sharing.
+ * which test ids were answered and with what status.
+ *
+ * The comments are the sensitive part, the actual notes on what is broken, so
+ * they are not in that answer. SHARED_KEY cannot buy them: it ships inside the
+ * form's JavaScript bundle, which means anybody who opens the tracker has it,
+ * and returning comments to it would publish every QA note on the platform.
+ * READER_KEY is the one that buys them. It is not in this file and not in the
+ * bundle; it is set as a script property on this project, and a tester pastes
+ * it into the tracker once and their browser keeps it. With no reader key the
+ * answer is statuses only, exactly as before.
  */
 
 // Change this, and put the same value in the form's VITE_SHARED_KEY.
 const SHARED_KEY = '3e6c31ecd956b804f09046b98ccc075e';
+
+/**
+ * The key that buys the comments back out of the sheet, and nothing else.
+ *
+ * ITS VALUE IS DELIBERATELY NOT IN THIS FILE.
+ * This file lives in a public GitHub repository, so a key written here would be
+ * readable by anybody and would protect nothing. It is not a VITE_ variable
+ * either: Vite bakes those into the bundle it serves, which would hand it to
+ * every visitor of the tracker.
+ *
+ * It lives in the one place that is neither published nor served: this script's
+ * own properties. In the Apps Script editor, Project Settings > Script
+ * properties > Add script property, named READER_KEY.
+ *
+ * Unset, or set to nothing, means comment reading is off and doGet behaves
+ * exactly as it did before it existed.
+ */
+function readerKey() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty('READER_KEY') || '';
+  } catch (err) {
+    // A script with no properties access must fail closed, not open.
+    return '';
+  }
+}
 
 const HEADERS = [
   'Submitted at',
@@ -94,6 +141,7 @@ const HEADERS = [
 const COL_SESSION = 2; // 1-based, matches HEADERS
 const COL_TEST_ID = 6;
 const COL_STATUS = 8;
+const COL_COMMENT = 9;
 
 function doPost(e) {
   try {
@@ -192,7 +240,13 @@ function doGet(e) {
 
   // Later rows win, so a test answered twice resumes as whatever it was
   // changed to rather than what it first was.
+  // An unset READER_KEY means comment reading is off, and must not be
+  // satisfiable by sending reader= with nothing after it.
+  const expectedReader = readerKey();
+  const canReadComments = Boolean(expectedReader) && String(p.reader || '') === expectedReader;
+
   const answers = {};
+  const comments = canReadComments ? {} : null;
   let found = 0;
 
   const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
@@ -212,12 +266,21 @@ function doGet(e) {
       const status = String(row[COL_STATUS - 1] || '').trim();
       if (!testId || !status) continue;
       answers[testId] = status;
+      if (comments) {
+        // Written even when blank, so that resuming a run shows a row whose
+        // note was later cleared as having none rather than as unknown.
+        comments[testId] = String(row[COL_COMMENT - 1] || '').trim();
+      }
       found++;
     }
   }
 
-  // Deliberately no comments in this payload. See the note at the top.
-  return reply({ ok: true, session: session, rows: found, answers: answers }, callback);
+  // 'comments' is absent, not empty, when the reader key was not given. The
+  // tracker tells those apart: absent means it never asked and must keep the
+  // notes already on screen, empty means the sheet holds none.
+  const payload = { ok: true, session: session, rows: found, answers: answers };
+  if (comments) payload.comments = comments;
+  return reply(payload, callback);
 }
 
 /**

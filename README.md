@@ -31,6 +31,38 @@ afternoon of work.
 4. **Deploy > New deployment > Web app**, with *Execute as: Me* and
    *Who has access: Anyone*. Copy the `/exec` URL.
 5. Share the Sheet with whoever needs to read results.
+6. Optional, and only if testers should be able to read each other's notes in
+   the tracker: **Project Settings > Script properties > Add script property**,
+   named `READER_KEY`, with a random value. See below.
+
+### Two keys, and why the notes need the second one
+
+`SHARED_KEY` is in the form's bundle. It has to be, because the form posts from
+a browser with no Google account, so anybody who opens the tracker has it. That
+is fine for what it does, which is turn away traffic that is not the form.
+
+It is not fine for the comments. Those are the notes on what is broken, naming
+fixture accounts, ids and which security holes were found, and returning them to
+a key that every visitor holds would publish the lot. So `doGet` hands back
+statuses for the shared key and comments only for a second key, `READER_KEY`.
+
+That second key is in neither place a key would normally go. Not in the bundle,
+because Vite bakes `VITE_` variables into what it serves. Not in `Code.gs`,
+because this repository is public. It is a script property on the Apps Script
+project, which is neither published nor served, and a tester pastes it into the
+tracker once under "Reader key". Their browser keeps it.
+
+With no property set, or no key pasted, resume and refresh return statuses only,
+which is how this worked for its first two rounds.
+
+### A refresh must never blank a note
+
+A send rewrites the whole row, comment column included. So a refresh that pulled
+a status in while leaving the note box empty would, on the next send, blank a
+note already recorded in the sheet. That is the trap, and the merge is written
+around it: where the tester has typed nothing the sheet's note is adopted, and
+where they have typed something theirs wins and the row stays pending so it
+reaches the sheet. Unsent work is never overwritten in either direction.
 
 ### The send is checked, not assumed
 

@@ -10,8 +10,37 @@ const VALID: QaStatus[] = ['pass', 'fail', 'blocked', 'na', 'solved'];
 export interface ResumeResult {
   ok: boolean;
   answers?: Record<string, QaStatus>;
+  /**
+   * test id -> the note in the sheet.
+   *
+   * Undefined when no reader key was given, which is not the same as empty: the
+   * caller must leave the notes on screen alone in that case rather than wipe
+   * them with nothing.
+   */
+  comments?: Record<string, string>;
   rows?: number;
   error?: string;
+}
+
+/** Where the reader key lives between sittings. Never in the bundle. */
+const READER_KEY_STORE = 'trainistan-qa-reader-key';
+
+export function loadReaderKey(): string {
+  try {
+    return localStorage.getItem(READER_KEY_STORE) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveReaderKey(key: string): void {
+  try {
+    const trimmed = key.trim();
+    if (trimmed) localStorage.setItem(READER_KEY_STORE, trimmed);
+    else localStorage.removeItem(READER_KEY_STORE);
+  } catch {
+    // Private browsing throws. The key still works for this sitting.
+  }
 }
 
 /**
@@ -23,10 +52,12 @@ export interface ResumeResult {
  * read a normal request to it; a script tag is not subject to that rule and is
  * the one route that works.
  *
- * The response carries statuses only. Comments stay in the sheet, which is why
- * this can be open without publishing the notes on what is broken.
+ * Statuses come back for anybody holding the shared key, which ships in this
+ * bundle. The comments are the notes on what is broken, so they cost a second
+ * key that is not in the bundle and that a tester pastes in once. Without it
+ * the response is exactly what it always was.
  */
-export function fetchRun(sessionId: string): Promise<ResumeResult> {
+export function fetchRun(sessionId: string, readerKey?: string): Promise<ResumeResult> {
   if (!SHEET_URL) {
     return Promise.resolve({ ok: false, error: 'This build has no sheet URL configured.' });
   }
@@ -58,7 +89,13 @@ export function fetchRun(sessionId: string): Promise<ResumeResult> {
     );
 
     (window as unknown as Record<string, unknown>)[callback] = (raw: unknown) => {
-      const data = raw as { ok?: boolean; error?: string; rows?: number; answers?: Record<string, string> };
+      const data = raw as {
+        ok?: boolean;
+        error?: string;
+        rows?: number;
+        answers?: Record<string, string>;
+        comments?: Record<string, string>;
+      };
       if (!data?.ok) {
         finish({ ok: false, error: data?.error ?? 'The sheet refused that request.' });
         return;
@@ -70,13 +107,23 @@ export function fetchRun(sessionId: string): Promise<ResumeResult> {
         const s = String(status).toLowerCase() as QaStatus;
         if (VALID.includes(s)) answers[testId] = s;
       }
-      finish({ ok: true, answers, rows: data.rows ?? 0 });
+      // Absent stays absent. Turning a missing map into {} here would tell the
+      // caller the sheet holds no notes, and it would clear the ones on screen.
+      const comments = data.comments
+        ? Object.fromEntries(
+            Object.entries(data.comments).map(([testId, text]) => [testId, String(text ?? '')]),
+          )
+        : undefined;
+
+      finish({ ok: true, answers, comments, rows: data.rows ?? 0 });
     };
 
     const url = new URL(SHEET_URL);
     url.searchParams.set('key', SHARED_KEY ?? '');
     url.searchParams.set('session', sessionId);
     url.searchParams.set('callback', callback);
+    const reader = (readerKey ?? '').trim();
+    if (reader) url.searchParams.set('reader', reader);
 
     script.src = url.toString();
     script.onerror = () => finish({ ok: false, error: 'Could not reach the sheet.' });

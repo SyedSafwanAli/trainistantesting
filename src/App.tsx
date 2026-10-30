@@ -11,7 +11,7 @@ import {
   saveRun,
   signature,
   type Run, refreshedFromSheet } from './lib/store';
-import { fetchRun } from './lib/resume';
+import { fetchRun, loadReaderKey, saveReaderKey } from './lib/resume';
 import { answersFromJson, runAsJson, submitRun, type LoadedAnswers } from './lib/submit';
 
 const STATUSES: { value: QaStatus; label: string }[] = [
@@ -56,6 +56,20 @@ export default function App() {
   const [banner, setBanner] = useState<{ kind: 'good' | 'bad'; text: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  /**
+   * Buys the sheet's notes back on a refresh.
+   *
+   * Kept in localStorage rather than the run, so it survives starting a new one
+   * and is typed once per machine. It is not in the bundle on purpose: the
+   * shared key is, and comments returned to that would be comments returned to
+   * anybody who opens this page.
+   */
+  const [readerKey, setReaderKey] = useState(loadReaderKey);
+
+  function onReaderKey(value: string) {
+    setReaderKey(value);
+    saveReaderKey(value);
+  }
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
 
@@ -115,7 +129,7 @@ export default function App() {
     if (!run) return;
     setRefreshing(true);
     setBanner(null);
-    const res = await fetchRun(run.sessionId);
+    const res = await fetchRun(run.sessionId, readerKey);
     setRefreshing(false);
 
     if (!res.ok) {
@@ -134,12 +148,20 @@ export default function App() {
       ([id, status]) => run.answers[id]?.status !== status,
     ).length;
 
-    setRun((r) => (r ? refreshedFromSheet(r, fromSheet) : r));
+    const notes = res.comments
+      ? Object.values(res.comments).filter((text) => text.trim()).length
+      : 0;
+
+    setRun((r) => (r ? refreshedFromSheet(r, fromSheet, res.comments) : r));
     setBanner({
       kind: 'good',
-      text: changed
-        ? `Read ${incoming} answers from the sheet; ${changed} ${changed === 1 ? 'differs' : 'differ'} from what was on this screen and ${changed === 1 ? 'has' : 'have'} been updated.`
-        : `Read ${incoming} answers from the sheet. Nothing had changed since you loaded this run.`,
+      text:
+        (changed
+          ? `Read ${incoming} answers from the sheet; ${changed} ${changed === 1 ? 'differs' : 'differ'} from what was on this screen and ${changed === 1 ? 'has' : 'have'} been updated.`
+          : `Read ${incoming} answers from the sheet. Nothing had changed since you loaded this run.`) +
+        (res.comments
+          ? ` ${notes} ${notes === 1 ? 'note' : 'notes'} came back with them.`
+          : ' Notes were not read: there is no reader key on this machine.'),
     });
   }
 
@@ -279,6 +301,8 @@ export default function App() {
             onOpen={setSectionKey}
             onSubmit={onSubmit}
             onRefresh={onRefresh}
+            readerKey={readerKey}
+            onReaderKey={onReaderKey}
             onDownload={onDownload}
             onLoadFile={onLoadFile}
             onStatus={setAnswer}
@@ -327,6 +351,7 @@ function Start({ onStart }: { onStart: (run: Run) => void }) {
   const [tester, setTester] = useState('');
   const [environment, setEnvironment] = useState('UAT');
   const [resumeId, setResumeId] = useState('');
+  const [resumeKey, setResumeKey] = useState(loadReaderKey);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -341,7 +366,8 @@ function Start({ onStart }: { onStart: (run: Run) => void }) {
 
     setLoading(true);
     setError(null);
-    const res = await fetchRun(id);
+    saveReaderKey(resumeKey);
+    const res = await fetchRun(id, resumeKey);
     setLoading(false);
 
     if (!res.ok) {
@@ -352,7 +378,7 @@ function Start({ onStart }: { onStart: (run: Run) => void }) {
       setError(`No answers found for run ${id}. Check the ID, or leave it blank to start fresh.`);
       return;
     }
-    onStart(resumedRun(id, name, environment, res.answers ?? {}));
+    onStart(resumedRun(id, name, environment, res.answers ?? {}, res.comments));
   }
 
   return (
@@ -405,9 +431,22 @@ function Start({ onStart }: { onStart: (run: Run) => void }) {
           onChange={(e) => setResumeId(e.target.value)}
           placeholder="260905-2028-i4lj"
         />
+        <label htmlFor="resumekey" style={{ marginTop: 14 }}>
+          Key for reading notes (optional)
+        </label>
+        <input
+          id="resumekey"
+          type="password"
+          autoComplete="off"
+          value={resumeKey}
+          onChange={(e) => setResumeKey(e.target.value)}
+          placeholder="ask whoever set up the sheet"
+        />
         <p style={{ fontSize: 13, marginTop: 10, marginBottom: 0 }}>
           Only answers that were sent to the sheet come back. Anything marked but never submitted
-          stayed on the other machine. Your comments stay in the sheet and are not reloaded here.
+          stayed on the other machine. The note on each case comes back too, but only with the key
+          above: it is not in this page's code, because the notes say what is broken and this page
+          is open to anybody. Without it you get statuses and the notes stay in the sheet.
         </p>
       </div>
     </div>
@@ -470,6 +509,8 @@ function Overview({
   onOpen,
   onSubmit,
   onRefresh,
+  readerKey,
+  onReaderKey,
   onDownload,
   onLoadFile,
   sending,
@@ -491,6 +532,8 @@ function Overview({
   onOpen: (key: string) => void;
   onSubmit: () => void;
   onRefresh: () => void;
+  readerKey: string;
+  onReaderKey: (value: string) => void;
   onDownload: () => void;
   onLoadFile: (event: React.ChangeEvent<HTMLInputElement>) => void;
   sending: boolean;
@@ -673,6 +716,31 @@ function Overview({
         <button className="btn ghost small" onClick={onReset}>
           Start a new run
         </button>
+      </div>
+
+      {/* Here rather than on the start screen because a tester who is already
+          mid-run should not have to abandon it to read the notes. */}
+      <div className="card" style={{ marginTop: 18 }}>
+        <h2>Reader key</h2>
+        <p style={{ marginBottom: 12 }}>
+          Refresh from sheet brings back statuses for anybody. The notes on each case cost this
+          second key, which is kept out of this page's code on purpose. Paste it once and this
+          browser remembers it. Leave it empty and refresh behaves as it always did.
+        </p>
+        <label htmlFor="readerkey">Key for reading notes (optional)</label>
+        <input
+          id="readerkey"
+          type="password"
+          autoComplete="off"
+          value={readerKey}
+          onChange={(e) => onReaderKey(e.target.value)}
+          placeholder="ask whoever set up the sheet"
+        />
+        <p style={{ fontSize: 13, marginTop: 10, marginBottom: 0 }}>
+          {readerKey.trim()
+            ? 'Set. The next refresh will fill in the note on every case the sheet has one for.'
+            : 'Not set. Refresh will read statuses only, and the notes stay in the sheet.'}
+        </p>
       </div>
     </>
   );
