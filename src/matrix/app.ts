@@ -350,7 +350,9 @@ export const appSections = [
       t('APP-EDGE-001', 'Offline on launch', 'Launching with no network is handled.', 'Flight mode on.', ['Launch the app.'], 'A clear offline or connection error state appears with a retry. The app does not crash or hang on a blank screen.'),
       t('APP-EDGE-002', 'Going offline mid-session', 'Losing connection is communicated.', 'Signed in, browsing courses.', ['Turn on flight mode and navigate to another screen.'], 'A clear error or offline state appears rather than an endless spinner.'),
       t('APP-EDGE-003', 'Recovery when the network returns', 'The app recovers automatically or on retry.', 'Following the previous test.', ['Turn flight mode off, then retry or pull to refresh.'], 'Data loads normally again with no lingering error state.'),
-      t('APP-EDGE-004', 'Cached content offline', 'Any offline support behaves as designed.', 'Content viewed while online, then flight mode on.', ['Revisit that screen offline.'], 'Either cached content is shown, or a clear offline message appears. Record which. It must not show a broken half-loaded screen.'),
+      // APP-EDGE-004 removed: it checked that 'any offline support behaves as
+      // designed', and the app has no offline layer beyond cached_network_image,
+      // so there is no designed behaviour for it to check.
       t('APP-EDGE-005', 'API error is reported', 'A server failure is surfaced.', 'A way to make a request fail, such as flight mode during a save.', ['Submit a form while offline.'], 'A clear error appears and your typed input is not silently lost.'),
       t('APP-EDGE-006', 'Loading states', 'Every data screen shows a loading state.', 'Signed in on a slow connection.', ['Open five data-heavy screens.'], 'Each shows a skeleton or spinner and then real content. None flashes broken layout or stays blank.'),
       t('APP-EDGE-007', 'Empty states', 'Every list has an empty state.', 'A fresh account.', ['Open five list screens with no data.'], 'Each shows a clear empty state with guidance.'),

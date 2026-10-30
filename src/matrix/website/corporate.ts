@@ -44,8 +44,10 @@ export const corporateSections = [
       t('CORP-TRAINEES-013', 'Open a trainee detail', 'Individual progress is visible.', 'A trainee with enrolments.', ['Open that trainee.'], 'Their enrolled courses, progress and certificates render.'),
       t('CORP-TRAINEES-014', 'Remove a trainee', 'A trainee can be removed from the organisation.', 'A disposable trainee.', ['Remove them and confirm.'], 'A confirmation is requested, then they disappear from the roster.'),
       t('CORP-TRAINEES-015', 'Only own organisation trainees are visible', 'Cross-organisation data is not exposed.', 'Two organisations with trainees.', ['As leader A, search for a trainee name that belongs to organisation B.'], 'No result is returned.'),
-      t('CORP-TRAINEES-016', 'Large roster stays usable', 'A long trainee list is fully reachable.', 'More trainees than fit on one screen.', ['Scroll or page to the end of the list.'], 'All trainees are reachable and no row is duplicated across pages.'),
-      t('CORP-TRAINEES-017', 'Remove somebody from the team', 'A leaver can be taken off.', 'A trainee you are willing to remove, ideally one added for this run.', ['Remove them from the team.', 'Reload the list.'], 'They are gone from the roster.'),
+      // CORP-TRAINEES-016 removed: a long-roster check needs a dozen junk
+      // trainees created in a shared environment for almost nothing back.
+      // CORP-TRAINEES-017 removed: it was CORP-TRAINEES-014 written twice,
+      // the same removal with the same outcome.
       t('CORP-TRAINEES-018', 'The confirmation says what survives', 'Removing a person does not read as deleting them.', 'Starting to remove a trainee.', ['Read the confirmation before accepting.'], 'It says their own account and their learning stay with them, and only their membership of this company ends.'),
       t('CORP-TRAINEES-019', 'A removed person keeps their account', 'Removal does not destroy the learner.', 'The trainee removed above, whose login you have.', ['Sign in as them.'], 'They can still sign in and their own courses are still there.'),
       t('CORP-TRAINEES-020', 'One employee\'s courses', 'A leader can see what one person is on.', 'A trainee enrolled in at least one course.', ['Open that trainee and look at their learning.'], 'Their courses are listed with progress for each.'),

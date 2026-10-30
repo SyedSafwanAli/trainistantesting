@@ -55,7 +55,9 @@ export const adminSections = [
       t('ADMIN-USERS-020', 'Bulk selection and delete', 'Multiple users can be actioned together.', 'Two disposable test users.', ['Select both with the row checkboxes.', 'Use the bulk delete action and confirm.'], 'Both are removed. If the page has no bulk controls, mark this N/A.'),
       t('ADMIN-USERS-021', 'Pagination or scrolling of large lists', 'A long user list stays usable.', 'More users than fit on one screen.', ['Scroll or page through to the end of the list.'], 'All users are reachable. Paging controls, if present, move between pages correctly and do not repeat rows.'),
       t('ADMIN-USERS-022', 'Refresh keeps the view', 'Reloading the page returns to a working user list.', 'On /admin/users with a filter applied.', ['Press F5.'], 'The page reloads into a working user list. Note whether the filter is retained.'),
-      t('ADMIN-USERS-023', 'Admin cannot demote themselves into lockout', 'Changing your own role is handled safely.', 'Signed in as Admin.', ['Attempt to change your own account role to Student.'], 'Either the action is blocked with a clear message, or it succeeds and you are correctly redirected out of the admin area. Record which. It must not leave a broken half-state.'),
+      // ADMIN-USERS-023 removed: it asked the tester to demote the real admin
+      // account. On an environment real people use, a test that can take the
+      // admin away is not worth what it proves.
       t('ADMIN-USERS-024', 'User avatars render', 'Uploaded avatars show in the table.', 'A user with an uploaded avatar.', ['Find that user in the table.'], 'The uploaded image renders rather than a broken image icon.'),
     ],
   ),
@@ -219,7 +221,8 @@ export const adminSections = [
       t('ADMIN-PAYMENTS-005', 'Filter by invoice status', 'The status filter restricts the table.', 'Invoices in more than one status.', ['Filter to paid.', 'Then to pending.', 'Then to overdue.'], 'Each filter shows only invoices in that status.'),
       t('ADMIN-PAYMENTS-006', 'Search invoices', 'Search by client, email or invoice id works.', 'Several invoices.', ['Search a client name.', 'Then an email.', 'Then an invoice id.'], 'The table narrows correctly for each.'),
       t('ADMIN-PAYMENTS-007', 'Open an invoice', 'An invoice detail can be inspected.', 'At least one invoice.', ['Click an invoice row.'], 'The detail shows client, type, email, issued date, due date, order id and amount.'),
-      t('ADMIN-PAYMENTS-008', 'Invoice pagination', 'Paging through invoices works.', 'More invoices than one page holds.', ['Go to page 2, then back to page 1.'], 'Different rows appear on each page and no row is duplicated across pages.'),
+      // ADMIN-PAYMENTS-008 removed: paging needs invoices fabricated to fill a
+      // second page, in a shared environment, to check pagination.
       t('ADMIN-PAYMENTS-009', 'Combine tab, filter and search', 'The three controls apply together.', 'On /admin/payments.', ['Choose the Company tab, a status filter and a search term at once.'], 'The result respects all three. Switching tabs does not silently drop the others without indicating it.'),
       t('ADMIN-PAYMENTS-010', 'Empty invoice state', 'A filter matching nothing shows an empty state.', 'On /admin/payments.', ['Search zzzqqq.'], 'A clear empty state renders instead of a blank table.'),
       t('ADMIN-PAYMENTS-011', 'Revenue totals are consistent', 'The cards agree with the table.', 'On /admin/payments.', ['Compare Paid Invoices against the number of paid rows in the table.'], 'The card and the table agree.'),

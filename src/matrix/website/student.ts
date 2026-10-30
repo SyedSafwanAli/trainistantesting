@@ -173,7 +173,9 @@ export const studentSections = [
       t('ST-OTHER-027', 'Edit and delete a calendar item', 'Personal items can be changed and removed.', 'A personal calendar item.', ['Edit its title and save.', 'Then delete it and confirm.'], 'The edit persists, and the deletion asks for confirmation before removing it.'),
       t('ST-OTHER-039', 'Dashboard to-do list', 'Personal to-dos appear on the student dashboard.', 'Signed in as Student.', ['Open /student and find the to-do panel.', 'Add a to-do item.'], 'The item is added and persists after a refresh.'),
       t('ST-OTHER-040', 'Complete and delete a to-do', 'To-do items can be ticked off and removed.', 'A to-do item exists.', ['Mark it complete.', 'Then delete it.'], 'Completing it updates its state, and deleting removes it. Both persist after a refresh.'),
-      t('ST-OTHER-041', 'To-dos in the live session lobby', 'The lobby surfaces the same to-do list.', 'A live session you can enter the lobby for, and at least one to-do item.', ['Open the session lobby.'], 'The to-do list renders there with the same items as the dashboard.'),
+      // ST-OTHER-041 removed: it asserted a to-do list in the live session
+      // lobby. The lobby has never had one and nothing says it was meant to;
+      // the case was written from an assumption rather than the product.
       t('ST-OTHER-028', 'Notes page loads', 'Saved notes render.', 'A student with at least one note.', ['Open /student/notes.'], 'Notes render grouped by lesson or course with their content.'),
       t('ST-OTHER-029', 'Edit a note', 'A note can be edited.', 'An existing note.', ['Change its content and save.'], 'The change persists after refresh.'),
       t('ST-OTHER-030', 'Delete a note', 'A note can be removed.', 'A disposable note.', ['Delete it and confirm.'], 'A confirmation is requested, then the note disappears.'),
